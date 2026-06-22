@@ -23,8 +23,8 @@ export function LoginPage() {
   const form = useForm<LoginValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      organization_slug: "emidat-demo-manufacturing",
-      email: "admin@emidat-demo.com",
+      organization_slug: "demo-manufacturing",
+      email: "admin@demo.com",
       password: "ClimatePass123!",
     },
   });

@@ -36,7 +36,7 @@ export function ProductForm({
     defaultValues: {
       category: "Concrete",
       country: "Germany",
-      manufacturer: "Emidat Demo Manufacturing",
+      manufacturer: "Demo Manufacturing",
       production_method: "Verified batch production",
       recyclability_score: 80,
       sustainability_score: 80,

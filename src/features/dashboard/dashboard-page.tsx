@@ -118,7 +118,7 @@ export function DashboardPage() {
         </div>
         <div className="overflow-x-auto rounded-md border border-border">
           <div className="min-w-[760px]">
-            <div className="grid grid-cols-[1.5fr_0.8fr_repeat(4,0.7fr)] bg-muted px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
+            <div className="grid grid-cols-[1.8fr_0.8fr_repeat(4,0.7fr)] gap-x-4 bg-muted px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
               <span>Product</span>
               <span>Category</span>
               <span>CO2e</span>
@@ -127,8 +127,15 @@ export function DashboardPage() {
               <span>Score</span>
             </div>
             {data.hotspots.map((product) => (
-              <div key={product.product_id} className="grid grid-cols-[1.5fr_0.8fr_repeat(4,0.7fr)] border-t border-border px-3 py-3 text-sm">
-                <span className="truncate pr-3 font-medium">{product.name}</span>
+              <div key={product.product_id} className="grid grid-cols-[1.8fr_0.8fr_repeat(4,0.7fr)] items-center gap-x-4 border-t border-border px-3 py-3 text-sm">
+                <span className="flex min-w-0 items-center gap-3 font-medium">
+                  {product.image_url ? (
+                    <img className="h-10 w-10 shrink-0 rounded-md object-cover" src={product.image_url} alt="" />
+                  ) : (
+                    <span className="h-10 w-10 shrink-0 rounded-md bg-muted" aria-hidden="true" />
+                  )}
+                  <span className="truncate">{product.name}</span>
+                </span>
                 <span>{product.category}</span>
                 <span>{product.co2} kg</span>
                 <span>{product.energy} kWh</span>

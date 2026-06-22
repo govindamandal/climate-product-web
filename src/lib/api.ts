@@ -192,6 +192,7 @@ export const api = {
         product_id: string;
         name: string;
         category: string;
+        image_url: string | null;
         co2: number;
         energy: number;
         water: number;

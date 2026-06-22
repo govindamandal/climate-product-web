@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, FileUp, Plus, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { api, Product } from "@/lib/api";
 import { ProductForm, ProductFormValues } from "@/features/products/product-form";
+import { ProductEditForm, ProductEditFormValues } from "@/features/products/product-edit-form";
 import { useToastStore } from "@/stores/toast-store";
 
 const PAGE_SIZE = 10;
@@ -19,6 +20,7 @@ export function ProductsPage() {
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
@@ -81,6 +83,27 @@ export function ProductsPage() {
       errorMessage: "Could not import CSV",
     },
   });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, values }: { id: string; values: ProductEditFormValues }) => api.updateProduct(id, values),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setEditingProduct(null);
+    },
+    meta: {
+      successMessage: "Product updated",
+      errorMessage: "Could not update product",
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: api.deleteProduct,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    meta: {
+      successMessage: "Product deleted",
+      errorMessage: "Could not delete product",
+    },
+  });
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) importMutation.mutate(file);
@@ -90,6 +113,7 @@ export function ProductsPage() {
     {
       key: "name",
       header: "Product",
+      width: "minmax(320px, 2fr)",
       cell: (row) => (
         <Link className="flex items-center gap-3 font-medium text-primary" to={`/products/${row.id}`}>
           {row.image_url ? (
@@ -101,11 +125,37 @@ export function ProductsPage() {
         </Link>
       ),
     },
-    { key: "category", header: "Category", cell: (row) => row.category },
-    { key: "country", header: "Country", cell: (row) => row.country },
-    { key: "manufacturer", header: "Manufacturer", cell: (row) => row.manufacturer },
-    { key: "score", header: "Score", cell: (row) => row.environmental_records[0]?.sustainability_score ?? "No data" },
-    { key: "co2", header: "CO2e", cell: (row) => row.environmental_records[0] ? `${row.environmental_records[0].co2_kg} kg` : "No data" },
+    { key: "category", header: "Category", width: "minmax(140px, 1fr)", cell: (row) => row.category },
+    { key: "country", header: "Country", width: "minmax(120px, 0.8fr)", cell: (row) => row.country },
+    { key: "manufacturer", header: "Manufacturer", width: "minmax(160px, 1fr)", cell: (row) => row.manufacturer },
+    { key: "score", header: "Score", width: "minmax(90px, 0.6fr)", cell: (row) => row.environmental_records[0]?.sustainability_score ?? "No data" },
+    { key: "co2", header: "CO2e", width: "minmax(120px, 0.8fr)", cell: (row) => row.environmental_records[0] ? `${row.environmental_records[0].co2_kg} kg` : "No data" },
+    {
+      key: "actions",
+      header: "Action",
+      width: "150px",
+      className: "text-right",
+      cell: (row) => (
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="icon" aria-label={`Edit ${row.name}`} onClick={() => setEditingProduct(row)}>
+            <Pencil size={15} />
+          </Button>
+          <Button
+            variant="danger"
+            size="icon"
+            aria-label={`Delete ${row.name}`}
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (window.confirm(`Delete ${row.name}? This cannot be undone.`)) {
+                deleteMutation.mutate(row.id);
+              }
+            }}
+          >
+            <Trash2 size={15} />
+          </Button>
+        </div>
+      ),
+    },
   ];
   const total = data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -169,6 +219,15 @@ export function ProductsPage() {
       <Modal open={open} title="Create product" onClose={() => setOpen(false)}>
         <ProductForm pending={mutation.isPending} onSubmit={(values) => mutation.mutate(values)} />
       </Modal>
+      {editingProduct ? (
+        <Modal open title="Edit product" onClose={() => setEditingProduct(null)}>
+          <ProductEditForm
+            product={editingProduct}
+            pending={updateMutation.isPending}
+            onSubmit={(values) => updateMutation.mutate({ id: editingProduct.id, values })}
+          />
+        </Modal>
+      ) : null}
     </div>
   );
 }

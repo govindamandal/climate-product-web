@@ -1,4 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ImagePlus } from "lucide-react";
+import { ChangeEvent, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,7 @@ const schema = z.object({
   sustainability_score: z.coerce.number().min(0).max(100).optional(),
 });
 
-export type ProductFormValues = z.infer<typeof schema>;
+export type ProductFormValues = z.infer<typeof schema> & { image_file?: File };
 
 export function ProductForm({
   onSubmit,
@@ -42,8 +44,16 @@ export function ProductForm({
       sustainability_score: 80,
     },
   });
+  const [imageFile, setImageFile] = useState<File | undefined>();
+  const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setImageFile(event.target.files?.[0]);
+  };
+
   return (
-    <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
+    <form
+      className="grid gap-4 md:grid-cols-2"
+      onSubmit={form.handleSubmit((values) => onSubmit({ ...values, image_file: imageFile }))}
+    >
       <Input placeholder="Product name" {...form.register("name")} />
       <Select {...form.register("category")}>
         {["Concrete", "Cement", "Steel", "Brick", "Glass", "Timber", "Insulation"].map((item) => (
@@ -62,6 +72,20 @@ export function ProductForm({
       <Input placeholder="Transport CO2e kg" type="number" min="0" step="0.1" {...form.register("transportation_kg_co2")} />
       <Input placeholder="Recyclability score" type="number" min="0" max="100" {...form.register("recyclability_score")} />
       <Input placeholder="Sustainability score" type="number" min="0" max="100" {...form.register("sustainability_score")} />
+      <label className="flex min-h-24 cursor-pointer flex-col justify-center rounded-md border border-dashed border-border bg-muted/40 px-4 py-3 text-sm transition hover:bg-muted md:col-span-2">
+        <span className="flex items-center gap-2 font-medium">
+          <ImagePlus size={16} /> Product image
+        </span>
+        <span className="mt-1 text-muted-foreground">
+          {imageFile ? imageFile.name : "Upload JPG, PNG, or WebP after product creation."}
+        </span>
+        <input
+          className="sr-only"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={onImageChange}
+        />
+      </label>
       <Button className="md:col-span-2" disabled={pending}>
         Create product
       </Button>

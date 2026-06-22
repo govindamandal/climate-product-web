@@ -27,9 +27,9 @@ export function ProductsPage() {
     queryFn: () => api.products({ search, category, page, pageSize: PAGE_SIZE }),
   });
   const mutation = useMutation({
-    mutationFn: (values: ProductFormValues) => {
+    mutationFn: async (values: ProductFormValues) => {
       const certification = values.certification_name?.trim();
-      return api.createProduct({
+      const product = await api.createProduct({
         name: values.name,
         category: values.category,
         description: values.description ?? "",
@@ -53,6 +53,10 @@ export function ProductsPage() {
                 sustainability_score: values.sustainability_score ?? 0,
               },
       });
+      if (values.image_file) {
+        await api.uploadProductImage(product.id, values.image_file);
+      }
+      return product;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });

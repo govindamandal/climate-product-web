@@ -3,6 +3,7 @@ import { Brain, Lightbulb } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api";
 
@@ -24,17 +25,23 @@ export function AdvisorPage() {
         <p className="text-sm text-muted-foreground">Product-specific recommendations, not a chatbot.</p>
       </div>
       <section className="rounded-lg border border-border bg-card p-5">
-        <div className="flex flex-col gap-3 md:flex-row">
-          <Select value={productId} onChange={(event) => setProductId(event.target.value)}>
-            <option value="">Select product</option>
-            {items.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-          </Select>
-          <Button disabled={!productId || advisor.isPending} onClick={() => advisor.mutate(productId)}>
-            <Brain size={16} /> Analyze product
-          </Button>
-        </div>
+        {products.isLoading ? (
+          <LoadingState label="Loading products" />
+        ) : (
+          <div className="flex flex-col gap-3 md:flex-row">
+            <Select value={productId} onChange={(event) => setProductId(event.target.value)}>
+              <option value="">Select product</option>
+              {items.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+            </Select>
+            <Button disabled={!productId || advisor.isPending} onClick={() => advisor.mutate(productId)}>
+              <Brain size={16} /> Analyze product
+            </Button>
+          </div>
+        )}
       </section>
-      {advisor.data?.recommendations.length ? (
+      {advisor.isPending ? (
+        <LoadingState label="Generating sustainability analysis" />
+      ) : advisor.data?.recommendations.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {advisor.data.recommendations.map((rec) => (
             <article key={rec.title} className="rounded-lg border border-border bg-card p-5">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Column, DataGrid } from "@/components/ui/data-grid";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { LoadingState } from "@/components/ui/loading-state";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { api, Product } from "@/lib/api";
@@ -24,7 +25,7 @@ export function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
-  const { data } = useQuery({
+  const { data, isFetching, isLoading } = useQuery({
     queryKey: ["products", search, category, page],
     queryFn: () => api.products({ search, category, page, pageSize: PAGE_SIZE }),
   });
@@ -215,7 +216,13 @@ export function ProductsPage() {
           {importMutation.data.skipped ? `, skipped ${importMutation.data.skipped}` : ""}.
         </div>
       ) : null}
-      {data?.items.length ? <DataGrid rows={data.items} columns={columns} /> : <EmptyState title="No products found" />}
+      {isLoading || (isFetching && !data) ? (
+        <LoadingState label="Loading products" />
+      ) : data?.items.length ? (
+        <DataGrid rows={data.items} columns={columns} />
+      ) : (
+        <EmptyState title="No products found" />
+      )}
       <Modal open={open} title="Create product" onClose={() => setOpen(false)}>
         <ProductForm pending={mutation.isPending} onSubmit={(values) => mutation.mutate(values)} />
       </Modal>

@@ -82,6 +82,23 @@ export type ImportResult = {
   skipped: number;
   errors: Array<{ row: number; message: string }>;
 };
+export type CertificateExtraction = {
+  id: string;
+  organization_id: string;
+  product_id: string | null;
+  file_name: string;
+  certification_name: string | null;
+  expiry_date: string | null;
+  emission_value: number | null;
+  compliance_information: string | null;
+  extracted_json: Record<string, unknown>;
+  status: "needs_review" | "approved" | "rejected";
+  created_at: string;
+};
+export type CertificateExtractionList = {
+  items: CertificateExtraction[];
+  total: number;
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().accessToken;
@@ -193,4 +210,19 @@ export const api = {
         next_step: string;
       }>;
     }>(`/ai/products/${id}/advisor`, { method: "POST" }),
+  certificates: () => request<CertificateExtractionList>("/certificates"),
+  extractCertificate: (payload: { file: File; productId?: string }) => {
+    const formData = new FormData();
+    formData.append("file", payload.file);
+    if (payload.productId) formData.append("product_id", payload.productId);
+    return request<CertificateExtraction>("/certificates/extract", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  updateCertificate: (id: string, payload: Partial<CertificateExtraction>) =>
+    request<CertificateExtraction>(`/certificates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
 };

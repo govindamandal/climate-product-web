@@ -5,20 +5,19 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
-import { Select } from "@/components/ui/select";
-import { api, CertificateExtraction } from "@/lib/api";
+import { ProductSearchPicker } from "@/features/products/product-search-picker";
+import { api, CertificateExtraction, Product } from "@/lib/api";
 
 export function CertificatesPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [productId, setProductId] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const queryClient = useQueryClient();
-  const products = useQuery({ queryKey: ["products", "certificates"], queryFn: () => api.products() });
   const certificates = useQuery({ queryKey: ["certificates"], queryFn: api.certificates });
   const extractMutation = useMutation({
-    mutationFn: () => api.extractCertificate({ file: file as File, productId }),
+    mutationFn: () => api.extractCertificate({ file: file as File, productId: selectedProduct?.id }),
     onSuccess: () => {
       setFile(null);
-      setProductId("");
+      setSelectedProduct(null);
       queryClient.invalidateQueries({ queryKey: ["certificates"] });
     },
     meta: {
@@ -42,8 +41,6 @@ export function CertificatesPage() {
     event.preventDefault();
     if (file) extractMutation.mutate();
   };
-  const productOptions = products.data?.items ?? [];
-  const isLoading = certificates.isLoading || products.isLoading;
 
   return (
     <div className="space-y-5">
@@ -52,20 +49,32 @@ export function CertificatesPage() {
         <p className="text-sm text-muted-foreground">Upload EPD PDFs and sustainability certificates for structured extraction.</p>
       </div>
       <form className="rounded-lg border border-border bg-card p-5" onSubmit={onSubmit}>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px_auto]">
-          <Input type="file" accept=".pdf,.txt" onChange={onFileChange} />
-          <Select value={productId} onChange={(event) => setProductId(event.target.value)}>
-            <option value="">No linked product</option>
-            {productOptions.map((product) => (
-              <option key={product.id} value={product.id}>{product.name}</option>
-            ))}
-          </Select>
-          <Button disabled={!file || extractMutation.isPending}>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)_auto] lg:items-start">
+          <label className="grid gap-2 text-sm font-medium">
+            Certificate file
+            <Input type="file" accept=".pdf,.txt" onChange={onFileChange} />
+          </label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Linked product</span>
+              <Button
+                className="h-7 px-2"
+                disabled={!selectedProduct}
+                type="button"
+                variant="ghost"
+                onClick={() => setSelectedProduct(null)}
+              >
+                Clear
+              </Button>
+            </div>
+            <ProductSearchPicker selectedProduct={selectedProduct} onSelect={setSelectedProduct} />
+          </div>
+          <Button className="lg:mt-7" disabled={!file || extractMutation.isPending}>
             <Upload size={16} /> Extract certificate
           </Button>
         </div>
       </form>
-      {isLoading ? (
+      {certificates.isLoading ? (
         <LoadingState label="Loading certificates" />
       ) : certificates.data?.items.length ? (
         <div className="grid gap-4">
@@ -73,7 +82,6 @@ export function CertificatesPage() {
             <CertificateReviewCard
               key={item.id}
               certificate={item}
-              productName={productOptions.find((product) => product.id === item.product_id)?.name}
               pending={updateMutation.isPending}
               onSave={(values) => updateMutation.mutate({ id: item.id, values })}
             />
@@ -91,12 +99,10 @@ export function CertificatesPage() {
 
 function CertificateReviewCard({
   certificate,
-  productName,
   pending,
   onSave,
 }: {
   certificate: CertificateExtraction;
-  productName?: string;
   pending: boolean;
   onSave: (values: Partial<CertificateExtraction>) => void;
 }) {
@@ -129,7 +135,7 @@ function CertificateReviewCard({
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {productName ? `Linked to ${productName}` : "Not linked to a product"} · Uploaded {new Date(certificate.created_at).toLocaleDateString()}
+            <CertificateProductLabel productId={certificate.product_id} /> · Uploaded {new Date(certificate.created_at).toLocaleDateString()}
           </p>
         </div>
         <div className="flex gap-2">
@@ -174,4 +180,16 @@ function CertificateReviewCard({
       </div>
     </article>
   );
+}
+
+function CertificateProductLabel({ productId }: { productId: string | null }) {
+  const product = useQuery({
+    queryKey: ["products", productId],
+    queryFn: () => api.product(productId as string),
+    enabled: Boolean(productId),
+  });
+
+  if (!productId) return <>Not linked to a product</>;
+  if (product.isLoading) return <>Loading linked product</>;
+  return <>Linked to {product.data?.name ?? "unknown product"}</>;
 }

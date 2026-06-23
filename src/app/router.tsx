@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProtectedRoute } from "@/routes/protected-route";
 import { LoginPage } from "@/features/auth/login-page";
+import { RegisterPage } from "@/features/auth/register-page";
 import { RoutePage } from "@/app/route-page";
 
 const DashboardPage = lazy(() => import("@/features/dashboard/dashboard-page").then((m) => ({ default: m.DashboardPage })));
@@ -18,6 +19,7 @@ const CertificatesPage = lazy(() => import("@/features/ai/certificates-page").th
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/register", element: <RegisterPage /> },
   {
     element: <ProtectedRoute />,
     children: [

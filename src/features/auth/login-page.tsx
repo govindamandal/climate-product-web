@@ -3,7 +3,7 @@ import { Leaf } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,6 +137,12 @@ export function LoginPage() {
               </div>
             </div>
           ) : null}
+          <p className="text-center text-sm text-muted-foreground">
+            Need a workspace?{" "}
+            <Link className="font-medium text-primary hover:underline" to="/register">
+              Create one
+            </Link>
+          </p>
         </form>
       </section>
     </main>

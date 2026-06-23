@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Leaf } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
+import { useToastStore } from "@/stores/toast-store";
 
 const schema = z.object({
   organization_slug: z.string().optional(),
@@ -16,10 +18,16 @@ const schema = z.object({
 });
 
 type LoginValues = z.infer<typeof schema>;
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
 
 export function LoginPage() {
   const navigate = useNavigate();
   const setSession = useAuthStore((state) => state.setSession);
+  const addToast = useToastStore((state) => state.addToast);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const form = useForm<LoginValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -27,6 +35,10 @@ export function LoginPage() {
       email: "admin@demo.com",
       password: "ClimatePass123!",
     },
+  });
+  const forgotPasswordForm = useForm<ForgotPasswordValues>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "admin@demo.com" },
   });
   const mutation = useMutation({
     mutationFn: api.login,
@@ -37,6 +49,20 @@ export function LoginPage() {
     onSuccess: (session) => {
       setSession(session);
       navigate(session.user.role === "super_admin" ? "/platform" : "/");
+    },
+  });
+  const forgotPasswordMutation = useMutation({
+    mutationFn: api.forgotPassword,
+    onSuccess: (result) => {
+      addToast({
+        title: "Password reset requested",
+        description: result.message,
+        variant: "success",
+      });
+      setShowForgotPassword(false);
+    },
+    meta: {
+      errorMessage: "Could not request password reset",
     },
   });
 
@@ -78,6 +104,39 @@ export function LoginPage() {
           <Button className="w-full" disabled={mutation.isPending}>
             Sign in
           </Button>
+          <Button
+            className="w-full"
+            type="button"
+            variant="ghost"
+            onClick={() => setShowForgotPassword((value) => !value)}
+          >
+            Forgot password?
+          </Button>
+          {showForgotPassword ? (
+            <div className="rounded-lg border border-border bg-background p-4">
+              <div>
+                <h3 className="text-sm font-semibold">Reset password</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Enter your account email and we will send reset instructions if the account exists.
+                </p>
+              </div>
+              <div className="mt-3 grid gap-3">
+                <Input
+                  aria-label="Reset email"
+                  type="email"
+                  {...forgotPasswordForm.register("email")}
+                />
+                <Button
+                  disabled={forgotPasswordMutation.isPending}
+                  type="button"
+                  variant="secondary"
+                  onClick={forgotPasswordForm.handleSubmit((values) => forgotPasswordMutation.mutate(values))}
+                >
+                  Send reset instructions
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </form>
       </section>
     </main>

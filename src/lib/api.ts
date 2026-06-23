@@ -142,8 +142,27 @@ export type CertificateExtractionList = {
   items: CertificateExtraction[];
   total: number;
 };
+export type AuthTokens = {
+  access_token: string;
+  refresh_token: string;
+  user: User;
+};
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function refreshSession() {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) return false;
+  const response = await fetch(`${API_URL}/auth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!response.ok) return false;
+  const session = (await response.json()) as AuthTokens;
+  useAuthStore.getState().setSession(session);
+  return true;
+}
+
+async function request<T>(path: string, init: RequestInit = {}, retryOnUnauthorized = true): Promise<T> {
   const token = useAuthStore.getState().accessToken;
   const isFormData = init.body instanceof FormData;
   const response = await fetch(`${API_URL}${path}`, {
@@ -158,6 +177,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     const message = error.detail ?? "Request failed";
     if (response.status === 401 && token && !path.startsWith("/auth/login")) {
+      if (retryOnUnauthorized && !path.startsWith("/auth/refresh") && await refreshSession()) {
+        return request<T>(path, init, false);
+      }
       handleUnauthorizedSession();
     }
     throw new ApiError(message, response.status);
@@ -170,12 +192,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const api = {
   login: (payload: { email: string; password: string; organization_slug?: string }) =>
-    request<{ access_token: string; refresh_token: string; user: User }>("/auth/login", {
+    request<AuthTokens>("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
   register: (payload: Record<string, unknown>) =>
-    request<{ access_token: string; refresh_token: string; user: User }>("/auth/register", {
+    request<AuthTokens>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  forgotPassword: (payload: { email: string }) =>
+    request<{ message: string }>("/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

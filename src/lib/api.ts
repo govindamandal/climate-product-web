@@ -33,6 +33,32 @@ export type User = {
   role: "super_admin" | "org_admin" | "org_user";
   is_active: boolean;
 };
+export type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  country: string;
+  subscription_status: "trial" | "active" | "past_due" | "canceled";
+  created_at: string;
+};
+export type Team = {
+  organization: Organization;
+  members: User[];
+};
+export type AuditLog = {
+  id: string;
+  organization_id: string | null;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  metadata_json: Record<string, unknown>;
+  created_at: string;
+};
+export type AuditLogList = {
+  items: AuditLog[];
+  total: number;
+};
 
 export type Product = {
   id: string;
@@ -137,6 +163,15 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   me: () => request<User>("/auth/me"),
+  currentOrganization: () => request<Organization>("/organizations/current"),
+  team: () => request<Team>("/organizations/team"),
+  inviteUser: (payload: { email: string; full_name: string; role: "org_admin" | "org_user" }) =>
+    request<Team>("/organizations/invites", { method: "POST", body: JSON.stringify(payload) }),
+  updateTeamMember: (id: string, payload: Partial<Pick<User, "full_name" | "role" | "is_active">>) =>
+    request<User>(`/organizations/team/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeTeamMember: (id: string) =>
+    request<void>(`/organizations/team/${id}`, { method: "DELETE" }),
+  auditLogs: (limit = 25) => request<AuditLogList>(`/organizations/audit-logs?limit=${limit}`),
   products: (query: ProductQuery = {}) => {
     const params = new URLSearchParams();
     if (query.search) params.set("search", query.search);

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { BarChart3, Brain, FileBadge, GitCompareArrows, Leaf, LogOut, Menu, Package, ShieldCheck, X } from "lucide-react";
+import { BarChart3, Brain, Building2, FileBadge, GitCompareArrows, Leaf, LogOut, Menu, Package, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
@@ -11,6 +11,7 @@ const nav = [
   { to: "/products", label: "Products", icon: Package },
   { to: "/passports", label: "Passports", icon: FileBadge },
   { to: "/benchmarking", label: "Benchmarking", icon: GitCompareArrows },
+  { to: "/organization", label: "Organization", icon: Building2 },
   { to: "/advisor", label: "AI Advisor", icon: Brain },
   { to: "/certificates", label: "Certificates", icon: ShieldCheck },
 ];

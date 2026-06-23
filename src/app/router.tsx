@@ -13,6 +13,7 @@ const BenchmarkingPage = lazy(() => import("@/features/benchmarking/benchmarking
 const OrganizationPage = lazy(() => import("@/features/organization/organization-page").then((m) => ({ default: m.OrganizationPage })));
 const PlatformPage = lazy(() => import("@/features/platform/platform-page").then((m) => ({ default: m.PlatformPage })));
 const AdvisorPage = lazy(() => import("@/features/ai/advisor-page").then((m) => ({ default: m.AdvisorPage })));
+const ReportsPage = lazy(() => import("@/features/reports/reports-page").then((m) => ({ default: m.ReportsPage })));
 const CertificatesPage = lazy(() => import("@/features/ai/certificates-page").then((m) => ({ default: m.CertificatesPage })));
 
 export const router = createBrowserRouter([
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
           { path: "organization", element: <RoutePage><OrganizationPage /></RoutePage> },
           { path: "platform", element: <RoutePage><PlatformPage /></RoutePage> },
           { path: "advisor", element: <RoutePage><AdvisorPage /></RoutePage> },
+          { path: "reports", element: <RoutePage><ReportsPage /></RoutePage> },
           { path: "certificates", element: <RoutePage><CertificatesPage /></RoutePage> },
         ],
       },

@@ -284,6 +284,10 @@ export const api = {
         next_step: string;
       }>;
     }>(`/ai/products/${id}/advisor`, { method: "POST" }),
+  report: (id: string) =>
+    request<{ product_id: string; summary: string; markdown: string }>(`/ai/products/${id}/report`, {
+      method: "POST",
+    }),
   certificates: () => request<CertificateExtractionList>("/certificates"),
   extractCertificate: (payload: { file: File; productId?: string }) => {
     const formData = new FormData();

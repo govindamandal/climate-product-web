@@ -59,6 +59,23 @@ export type AuditLogList = {
   items: AuditLog[];
   total: number;
 };
+export type PlatformOrganization = Organization & {
+  user_count: number;
+  product_count: number;
+};
+export type PlatformAnalytics = {
+  organization_count: number;
+  active_subscription_count: number;
+  user_count: number;
+  product_count: number;
+  audit_log_count: number;
+};
+export type PlatformOrganizationCreated = {
+  organization: PlatformOrganization;
+  admin: User;
+  temporary_password: string;
+  created_at: string;
+};
 
 export type Product = {
   id: string;
@@ -172,6 +189,27 @@ export const api = {
   removeTeamMember: (id: string) =>
     request<void>(`/organizations/team/${id}`, { method: "DELETE" }),
   auditLogs: (limit = 25) => request<AuditLogList>(`/organizations/audit-logs?limit=${limit}`),
+  platformAnalytics: () => request<PlatformAnalytics>("/platform/analytics"),
+  platformOrganizations: () =>
+    request<{ items: PlatformOrganization[]; total: number }>("/platform/organizations"),
+  createPlatformOrganization: (payload: {
+    name: string;
+    slug: string;
+    country: string;
+    admin_email: string;
+    admin_full_name: string;
+  }) =>
+    request<PlatformOrganizationCreated>("/platform/organizations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updatePlatformOrganization: (id: string, payload: Pick<Organization, "subscription_status">) =>
+    request<PlatformOrganization>(`/platform/organizations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  platformUsers: () => request<{ items: User[]; total: number }>("/platform/users"),
+  platformAuditLogs: (limit = 50) => request<AuditLogList>(`/platform/audit-logs?limit=${limit}`),
   products: (query: ProductQuery = {}) => {
     const params = new URLSearchParams();
     if (query.search) params.set("search", query.search);

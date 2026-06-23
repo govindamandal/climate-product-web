@@ -6,7 +6,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 import { cn } from "@/lib/utils";
 
-const nav = [
+const tenantNav = [
   { to: "/", label: "Dashboard", icon: BarChart3 },
   { to: "/products", label: "Products", icon: Package },
   { to: "/passports", label: "Passports", icon: FileBadge },
@@ -16,11 +16,16 @@ const nav = [
   { to: "/certificates", label: "Certificates", icon: ShieldCheck },
 ];
 
+const platformNav = [
+  { to: "/platform", label: "Platform", icon: ShieldCheck },
+];
+
 export function AppShell() {
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((state) => state.addToast);
   const navigate = useNavigate();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const nav = user?.role === "super_admin" ? platformNav : tenantNav;
   const signOut = () => {
     logout();
     addToast({ title: "Signed out", variant: "success" });

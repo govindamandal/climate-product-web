@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/auth-store";
 
 const schema = z.object({
-  organization_slug: z.string().min(2),
+  organization_slug: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(8),
 });
@@ -36,7 +36,7 @@ export function LoginPage() {
     },
     onSuccess: (session) => {
       setSession(session);
-      navigate("/");
+      navigate(session.user.role === "super_admin" ? "/platform" : "/");
     },
   });
 
@@ -68,7 +68,7 @@ export function LoginPage() {
           <div>
             <h2 className="text-2xl font-semibold">Sign in</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Use the seeded demo account after running the backend seed.
+              Use a tenant account or leave organization blank for platform admin.
             </p>
           </div>
           <Input aria-label="Organization slug" {...form.register("organization_slug")} />

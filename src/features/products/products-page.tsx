@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, FileUp, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { ChangeEvent, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Brain, ChevronLeft, ChevronRight, FileText, FileUp, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Column, DataGrid } from "@/components/ui/data-grid";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,8 +12,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { api, Product } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { ProductForm, ProductFormValues } from "@/features/products/product-form";
-import { ProductEditForm, ProductEditFormValues } from "@/features/products/product-edit-form";
 import { useToastStore } from "@/stores/toast-store";
 
 const PAGE_SIZE = 10;
@@ -21,18 +23,18 @@ export function ProductsPage() {
   const [category, setCategory] = useState("");
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const addToast = useToastStore((state) => state.addToast);
-  const { data, isFetching, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["products", search, category, page],
     queryFn: () => api.products({ search, category, page, pageSize: PAGE_SIZE }),
   });
   const mutation = useMutation({
-    mutationFn: async (values: ProductFormValues) => {
+    mutationFn: (values: ProductFormValues) => {
       const certification = values.certification_name?.trim();
-      const product = await api.createProduct({
+      return api.createProduct({
         name: values.name,
         category: values.category,
         description: values.description ?? "",
@@ -56,10 +58,6 @@ export function ProductsPage() {
                 sustainability_score: values.sustainability_score ?? 0,
               },
       });
-      if (values.image_file) {
-        await api.uploadProductImage(product.id, values.image_file);
-      }
-      return product;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -84,17 +82,6 @@ export function ProductsPage() {
       errorMessage: "Could not import CSV",
     },
   });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: ProductEditFormValues }) => api.updateProduct(id, values),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      setEditingProduct(null);
-    },
-    meta: {
-      successMessage: "Product updated",
-      errorMessage: "Could not update product",
-    },
-  });
   const deleteMutation = useMutation({
     mutationFn: api.deleteProduct,
     onSuccess: () => {
@@ -114,7 +101,7 @@ export function ProductsPage() {
     {
       key: "name",
       header: "Product",
-      width: "minmax(320px, 2fr)",
+      width: "minmax(300px, 2fr)",
       cell: (row) => (
         <Link className="flex items-center gap-3 font-medium text-primary" to={`/products/${row.id}`}>
           {row.image_url ? (
@@ -127,34 +114,28 @@ export function ProductsPage() {
       ),
     },
     { key: "category", header: "Category", width: "minmax(140px, 1fr)", cell: (row) => row.category },
-    { key: "country", header: "Country", width: "minmax(120px, 0.8fr)", cell: (row) => row.country },
+    { key: "country", header: "Country", width: "minmax(110px, .8fr)", cell: (row) => row.country },
     { key: "manufacturer", header: "Manufacturer", width: "minmax(160px, 1fr)", cell: (row) => row.manufacturer },
-    { key: "score", header: "Score", width: "minmax(90px, 0.6fr)", cell: (row) => row.environmental_records[0]?.sustainability_score ?? "No data" },
-    { key: "co2", header: "CO2e", width: "minmax(120px, 0.8fr)", cell: (row) => row.environmental_records[0] ? `${row.environmental_records[0].co2_kg} kg` : "No data" },
+    { key: "score", header: "Score", width: "minmax(90px, .7fr)", cell: (row) => row.environmental_records[0]?.sustainability_score ?? "No data" },
+    { key: "co2", header: "CO2e", width: "minmax(110px, .8fr)", cell: (row) => row.environmental_records[0] ? `${row.environmental_records[0].co2_kg} kg` : "No data" },
     {
       key: "actions",
       header: "Action",
-      width: "150px",
-      className: "text-right",
+      width: "88px",
+      className: "text-right overflow-visible",
       cell: (row) => (
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="icon" aria-label={`Edit ${row.name}`} onClick={() => setEditingProduct(row)}>
-            <Pencil size={15} />
-          </Button>
-          <Button
-            variant="danger"
-            size="icon"
-            aria-label={`Delete ${row.name}`}
-            disabled={deleteMutation.isPending}
-            onClick={() => {
-              if (window.confirm(`Delete ${row.name}? This cannot be undone.`)) {
-                deleteMutation.mutate(row.id);
-              }
-            }}
-          >
-            <Trash2 size={15} />
-          </Button>
-        </div>
+        <ProductActionMenu
+          product={row}
+          deleting={deleteMutation.isPending}
+          onEdit={() => navigate(`/products/${row.id}`)}
+          onDelete={() => {
+            if (window.confirm(`Delete ${row.name}?`)) {
+              deleteMutation.mutate(row.id);
+            }
+          }}
+          onReport={() => navigate(`/reports?productId=${row.id}&generate=1`)}
+          onAdvisor={() => navigate(`/advisor?productId=${row.id}&generate=1`)}
+        />
       ),
     },
   ];
@@ -216,7 +197,7 @@ export function ProductsPage() {
           {importMutation.data.skipped ? `, skipped ${importMutation.data.skipped}` : ""}.
         </div>
       ) : null}
-      {isLoading || (isFetching && !data) ? (
+      {isLoading || isFetching ? (
         <LoadingState label="Loading products" />
       ) : data?.items.length ? (
         <DataGrid rows={data.items} columns={columns} />
@@ -226,15 +207,131 @@ export function ProductsPage() {
       <Modal open={open} title="Create product" onClose={() => setOpen(false)}>
         <ProductForm pending={mutation.isPending} onSubmit={(values) => mutation.mutate(values)} />
       </Modal>
-      {editingProduct ? (
-        <Modal open title="Edit product" onClose={() => setEditingProduct(null)}>
-          <ProductEditForm
-            product={editingProduct}
-            pending={updateMutation.isPending}
-            onSubmit={(values) => updateMutation.mutate({ id: editingProduct.id, values })}
-          />
-        </Modal>
-      ) : null}
     </div>
+  );
+}
+
+function ProductActionMenu({
+  product,
+  deleting,
+  onEdit,
+  onDelete,
+  onReport,
+  onAdvisor,
+}: {
+  product: Product;
+  deleting: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReport: () => void;
+  onAdvisor: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const buttonRect = buttonRef.current?.getBoundingClientRect();
+    if (buttonRect) {
+      const menuWidth = 176;
+      const menuHeight = 152;
+      const margin = 8;
+      const preferredLeft = buttonRect.right - menuWidth;
+      const preferredTop = buttonRect.bottom + 6;
+      const flippedTop = buttonRect.top - menuHeight - 6;
+      setPosition({
+        left: Math.min(Math.max(preferredLeft, margin), window.innerWidth - menuWidth - margin),
+        top: Math.min(
+          Math.max(preferredTop + menuHeight > window.innerHeight ? flippedTop : preferredTop, margin),
+          window.innerHeight - menuHeight - margin,
+        ),
+      });
+    }
+    const close = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !buttonRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+    };
+  }, [open]);
+
+  const choose = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+
+  const menu = open ? (
+    <div
+      className="fixed z-50 w-44 overflow-hidden rounded-md border border-border bg-card py-1 text-left text-sm shadow-lg"
+      ref={menuRef}
+      role="menu"
+      style={{ left: position.left, top: position.top }}
+    >
+      <MenuItem icon={<Pencil size={15} />} onClick={() => choose(onEdit)}>Edit</MenuItem>
+      <MenuItem icon={<FileText size={15} />} onClick={() => choose(onReport)}>Report</MenuItem>
+      <MenuItem icon={<Brain size={15} />} onClick={() => choose(onAdvisor)}>AI Advisory</MenuItem>
+      <MenuItem
+        destructive
+        disabled={deleting}
+        icon={<Trash2 size={15} />}
+        onClick={() => choose(onDelete)}
+      >
+        Delete
+      </MenuItem>
+    </div>
+  ) : null;
+
+  return (
+    <div className="relative flex justify-end overflow-visible">
+      <Button
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Actions for ${product.name}`}
+        ref={buttonRef}
+        size="icon"
+        type="button"
+        variant="ghost"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MoreHorizontal size={17} />
+      </Button>
+      {menu ? createPortal(menu, document.body) : null}
+    </div>
+  );
+}
+
+function MenuItem({
+  children,
+  destructive,
+  disabled,
+  icon,
+  onClick,
+}: {
+  children: string;
+  destructive?: boolean;
+  disabled?: boolean;
+  icon: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={cn(
+        "flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-muted disabled:pointer-events-none disabled:opacity-50",
+        destructive && "text-destructive hover:bg-destructive/10",
+      )}
+      disabled={disabled}
+      role="menuitem"
+      type="button"
+      onClick={onClick}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }

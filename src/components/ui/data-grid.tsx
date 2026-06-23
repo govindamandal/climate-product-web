@@ -24,7 +24,7 @@ export function DataGrid<T>({ rows, columns }: { rows: T[]; columns: Column<T>[]
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div
-        className="grid gap-x-4 border-b border-border bg-muted px-4 py-3 text-xs font-semibold uppercase text-muted-foreground"
+        className="grid gap-x-5 border-b border-border bg-muted px-4 py-3 text-xs font-semibold uppercase text-muted-foreground"
         style={{ gridTemplateColumns }}
       >
         {columns.map((column) => (
@@ -38,7 +38,7 @@ export function DataGrid<T>({ rows, columns }: { rows: T[]; columns: Column<T>[]
             return (
               <div
                 key={virtualRow.key}
-                className="absolute left-0 grid w-full items-center gap-x-4 border-b border-border px-4 text-sm"
+                className="absolute left-0 grid w-full items-center gap-x-5 border-b border-border px-4 text-sm"
                 style={{
                   gridTemplateColumns,
                   height: virtualRow.size,

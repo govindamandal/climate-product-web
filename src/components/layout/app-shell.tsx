@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { BarChart3, Brain, FileBadge, Leaf, LogOut, Package, ShieldCheck } from "lucide-react";
+import { BarChart3, Brain, FileBadge, GitCompareArrows, Leaf, LogOut, Package, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -9,6 +9,7 @@ const nav = [
   { to: "/", label: "Dashboard", icon: BarChart3 },
   { to: "/products", label: "Products", icon: Package },
   { to: "/passports", label: "Passports", icon: FileBadge },
+  { to: "/benchmarking", label: "Benchmarking", icon: GitCompareArrows },
   { to: "/advisor", label: "AI Advisor", icon: Brain },
   { to: "/certificates", label: "Certificates", icon: ShieldCheck },
 ];

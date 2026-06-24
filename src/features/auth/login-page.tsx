@@ -19,6 +19,7 @@ const schema = z.object({
 
 type LoginValues = z.infer<typeof schema>;
 const forgotPasswordSchema = z.object({
+  organization_slug: z.string().optional(),
   email: z.string().email(),
 });
 type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
@@ -38,7 +39,7 @@ export function LoginPage() {
   });
   const forgotPasswordForm = useForm<ForgotPasswordValues>({
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: "admin@demo.com" },
+    defaultValues: { organization_slug: "demo-manufacturing", email: "admin@demo.com" },
   });
   const mutation = useMutation({
     mutationFn: api.login,
@@ -56,7 +57,7 @@ export function LoginPage() {
     onSuccess: (result) => {
       addToast({
         title: "Password reset requested",
-        description: result.message,
+        description: result.reset_url ? `${result.message} Local reset link: ${result.reset_url}` : result.message,
         variant: "success",
       });
       setShowForgotPassword(false);
@@ -121,6 +122,10 @@ export function LoginPage() {
                 </p>
               </div>
               <div className="mt-3 grid gap-3">
+                <Input
+                  aria-label="Reset organization slug"
+                  {...forgotPasswordForm.register("organization_slug")}
+                />
                 <Input
                   aria-label="Reset email"
                   type="email"

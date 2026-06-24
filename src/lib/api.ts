@@ -201,8 +201,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  forgotPassword: (payload: { email: string }) =>
-    request<{ message: string }>("/auth/forgot-password", {
+  forgotPassword: (payload: { email: string; organization_slug?: string }) =>
+    request<{ message: string; reset_url?: string | null }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  resetPassword: (payload: { token: string; password: string }) =>
+    request<{ message: string }>("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

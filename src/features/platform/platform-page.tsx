@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, ClipboardList, CreditCard, Factory, Plus, Users } from "lucide-react";
+import { Building2, ClipboardList, CreditCard, Factory, Plus, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -18,10 +18,20 @@ export function PlatformPage() {
   const [country, setCountry] = useState("Germany");
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
+  const [auditSearch, setAuditSearch] = useState("");
+  const [auditAction, setAuditAction] = useState("");
   const analytics = useQuery({ queryKey: ["platform", "analytics"], queryFn: api.platformAnalytics });
   const organizations = useQuery({ queryKey: ["platform", "organizations"], queryFn: api.platformOrganizations });
   const users = useQuery({ queryKey: ["platform", "users"], queryFn: api.platformUsers });
-  const auditLogs = useQuery({ queryKey: ["platform", "audit-logs"], queryFn: () => api.platformAuditLogs(30) });
+  const auditLogs = useQuery({
+    queryKey: ["platform", "audit-logs", auditSearch, auditAction],
+    queryFn: () =>
+      api.platformAuditLogs({
+        limit: 30,
+        search: auditSearch || undefined,
+        action: auditAction || undefined,
+      }),
+  });
   const createMutation = useMutation({
     mutationFn: () =>
       api.createPlatformOrganization({
@@ -152,14 +162,43 @@ export function PlatformPage() {
           </div>
         </section>
         <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="font-semibold">Platform Audit Logs</h2>
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+            <div>
+              <h2 className="font-semibold">Platform Audit Logs</h2>
+              <p className="text-sm text-muted-foreground">Search tenant, actor, or entity activity.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_140px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-muted-foreground" size={16} />
+                <Input
+                  className="pl-9"
+                  placeholder="Search logs"
+                  value={auditSearch}
+                  onChange={(event) => setAuditSearch(event.target.value)}
+                />
+              </div>
+              <Select value={auditAction} onChange={(event) => setAuditAction(event.target.value)}>
+                <option value="">All actions</option>
+                <option value="create">Create</option>
+                <option value="update">Update</option>
+                <option value="delete">Delete</option>
+                <option value="login">Login</option>
+                <option value="export">Export</option>
+              </Select>
+            </div>
+          </div>
           <div className="mt-4 space-y-3">
-            {(auditLogs.data?.items ?? []).slice(0, 8).map((log) => (
+            {auditLogs.isFetching ? <LoadingState label="Loading audit logs" /> : null}
+            {!auditLogs.isFetching && (auditLogs.data?.items ?? []).slice(0, 8).map((log) => (
               <div key={log.id} className="rounded-md border border-border px-4 py-3 text-sm">
-                <div className="font-medium">{log.action} {log.entity_type.replace("_", " ")}</div>
+                <div className="font-medium">{log.description ?? `${log.action} ${log.entity_type.replace("_", " ")}`}</div>
+                <div className="text-muted-foreground">
+                  {log.organization_name ?? "Platform"} · {log.actor_full_name ?? log.actor_email ?? "System"}
+                </div>
                 <div className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</div>
               </div>
             ))}
+            {!auditLogs.isFetching && !auditLogs.data?.items.length ? <EmptyState title="No audit logs found" /> : null}
           </div>
         </section>
       </div>

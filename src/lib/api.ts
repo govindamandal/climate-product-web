@@ -54,10 +54,20 @@ export type AuditLog = {
   entity_id: string | null;
   metadata_json: Record<string, unknown>;
   created_at: string;
+  actor_email: string | null;
+  actor_full_name: string | null;
+  organization_name: string | null;
+  description: string | null;
 };
 export type AuditLogList = {
   items: AuditLog[];
   total: number;
+};
+export type AuditLogQuery = {
+  limit?: number;
+  action?: string;
+  entityType?: string;
+  search?: string;
 };
 export type PlatformOrganization = Organization & {
   user_count: number;
@@ -307,7 +317,10 @@ export const api = {
     request<User>(`/organizations/team/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   removeTeamMember: (id: string) =>
     request<void>(`/organizations/team/${id}`, { method: "DELETE" }),
-  auditLogs: (limit = 25) => request<AuditLogList>(`/organizations/audit-logs?limit=${limit}`),
+  auditLogs: (query: AuditLogQuery = {}) => {
+    const params = auditParams(query, 25);
+    return request<AuditLogList>(`/organizations/audit-logs?${params.toString()}`);
+  },
   platformAnalytics: () => request<PlatformAnalytics>("/platform/analytics"),
   platformOrganizations: () =>
     request<{ items: PlatformOrganization[]; total: number }>("/platform/organizations"),
@@ -328,7 +341,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   platformUsers: () => request<{ items: User[]; total: number }>("/platform/users"),
-  platformAuditLogs: (limit = 50) => request<AuditLogList>(`/platform/audit-logs?limit=${limit}`),
+  platformAuditLogs: (query: AuditLogQuery = {}) => {
+    const params = auditParams(query, 50);
+    return request<AuditLogList>(`/platform/audit-logs?${params.toString()}`);
+  },
   products: (query: ProductQuery = {}) => {
     const params = new URLSearchParams();
     if (query.search) params.set("search", query.search);
@@ -426,3 +442,12 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 };
+
+function auditParams(query: AuditLogQuery, defaultLimit: number) {
+  const params = new URLSearchParams();
+  params.set("limit", String(query.limit ?? defaultLimit));
+  if (query.action) params.set("action", query.action);
+  if (query.entityType) params.set("entity_type", query.entityType);
+  if (query.search) params.set("search", query.search);
+  return params;
+}

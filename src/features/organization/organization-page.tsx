@@ -8,6 +8,7 @@ import { KPIWidget } from "@/components/ui/kpi-widget";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { api, User } from "@/lib/api";
+import { permissionsFor } from "@/lib/permissions";
 import { useAuthStore } from "@/stores/auth-store";
 
 type InviteRole = "org_admin" | "org_user";
@@ -22,6 +23,7 @@ export function OrganizationPage() {
   const [auditAction, setAuditAction] = useState("");
   const [auditEntity, setAuditEntity] = useState("");
   const teamQuery = useQuery({ queryKey: ["organization", "team"], queryFn: api.team });
+  const permissions = permissionsFor(currentUser);
   const auditQuery = useQuery({
     queryKey: ["organization", "audit-logs", auditSearch, auditAction, auditEntity],
     queryFn: () =>
@@ -31,8 +33,8 @@ export function OrganizationPage() {
         action: auditAction || undefined,
         entityType: auditEntity || undefined,
       }),
+    enabled: permissions.canViewAuditTrail,
   });
-  const isAdmin = currentUser?.role === "org_admin" || currentUser?.role === "super_admin";
 
   const inviteMutation = useMutation({
     mutationFn: () => api.inviteUser({ email: inviteEmail, full_name: inviteName, role: inviteRole }),
@@ -70,7 +72,7 @@ export function OrganizationPage() {
     inviteMutation.mutate();
   };
 
-  if (teamQuery.isLoading || auditQuery.isLoading) return <LoadingState label="Loading organization" />;
+  if (teamQuery.isLoading || (permissions.canViewAuditTrail && auditQuery.isLoading)) return <LoadingState label="Loading organization" />;
   if (!teamQuery.data) return <EmptyState title="Organization unavailable" />;
 
   const { organization, members } = teamQuery.data;
@@ -99,14 +101,14 @@ export function OrganizationPage() {
             <h2 className="font-semibold">Invite Team Member</h2>
             <p className="text-sm text-muted-foreground">New users receive temporary demo credentials for this portfolio build.</p>
           </div>
-          {!isAdmin ? <span className="text-sm text-muted-foreground">Only admins can invite members.</span> : null}
+          {!permissions.canInviteTeam ? <span className="text-sm text-muted-foreground">Only admins can invite members.</span> : null}
         </div>
         <form className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]" onSubmit={onInvite}>
           <Input
             placeholder="Full name"
             value={inviteName}
             onChange={(event) => setInviteName(event.target.value)}
-            disabled={!isAdmin || inviteMutation.isPending}
+            disabled={!permissions.canInviteTeam || inviteMutation.isPending}
             required
           />
           <Input
@@ -114,18 +116,18 @@ export function OrganizationPage() {
             placeholder="Email address"
             value={inviteEmail}
             onChange={(event) => setInviteEmail(event.target.value)}
-            disabled={!isAdmin || inviteMutation.isPending}
+            disabled={!permissions.canInviteTeam || inviteMutation.isPending}
             required
           />
           <Select
             value={inviteRole}
             onChange={(event) => setInviteRole(event.target.value as InviteRole)}
-            disabled={!isAdmin || inviteMutation.isPending}
+            disabled={!permissions.canInviteTeam || inviteMutation.isPending}
           >
             <option value="org_user">User</option>
             <option value="org_admin">Admin</option>
           </Select>
-          <Button disabled={!isAdmin || inviteMutation.isPending}>
+          <Button disabled={!permissions.canInviteTeam || inviteMutation.isPending}>
             <MailPlus size={16} /> Invite
           </Button>
         </form>
@@ -146,7 +148,7 @@ export function OrganizationPage() {
               <span className="truncate text-muted-foreground">{member.email}</span>
               <Select
                 value={member.role}
-                disabled={!isAdmin || member.id === currentUser?.id || member.role === "super_admin" || updateMutation.isPending}
+                disabled={!permissions.canManageTeam || member.id === currentUser?.id || member.role === "super_admin" || updateMutation.isPending}
                 onChange={(event) => updateMutation.mutate({ id: member.id, values: { role: event.target.value as User["role"] } })}
               >
                 <option value="org_user">User</option>
@@ -156,7 +158,7 @@ export function OrganizationPage() {
                 className={`rounded-full border px-3 py-1 text-xs font-medium ${
                   member.is_active ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-muted text-muted-foreground"
                 }`}
-                disabled={!isAdmin || member.id === currentUser?.id || updateMutation.isPending}
+                disabled={!permissions.canManageTeam || member.id === currentUser?.id || updateMutation.isPending}
                 onClick={() => updateMutation.mutate({ id: member.id, values: { is_active: !member.is_active } })}
               >
                 {member.is_active ? "Active" : "Inactive"}
@@ -166,7 +168,7 @@ export function OrganizationPage() {
                   variant="danger"
                   size="icon"
                   aria-label={`Remove ${member.full_name}`}
-                  disabled={!isAdmin || member.id === currentUser?.id || removeMutation.isPending}
+                  disabled={!permissions.canManageTeam || member.id === currentUser?.id || removeMutation.isPending}
                   onClick={() => {
                     if (window.confirm(`Remove ${member.full_name} from ${organization.name}?`)) {
                       removeMutation.mutate(member.id);
@@ -181,70 +183,76 @@ export function OrganizationPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-border bg-card p-5">
-        <div className="mb-4 flex flex-col justify-between gap-3 xl:flex-row xl:items-end">
-          <div>
-            <h2 className="font-semibold">Audit Trail</h2>
-            <p className="text-sm text-muted-foreground">Filterable tenant activity across organization and team operations.</p>
-          </div>
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_180px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-muted-foreground" size={16} />
-              <Input
-                className="pl-9"
-                placeholder="Search actor or entity"
-                value={auditSearch}
-                onChange={(event) => setAuditSearch(event.target.value)}
-              />
+      {permissions.canViewAuditTrail ? (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <div className="mb-4 flex flex-col justify-between gap-3 xl:flex-row xl:items-end">
+            <div>
+              <h2 className="font-semibold">Audit Trail</h2>
+              <p className="text-sm text-muted-foreground">Filterable tenant activity across organization and team operations.</p>
             </div>
-            <Select value={auditAction} onChange={(event) => setAuditAction(event.target.value)}>
-              <option value="">All actions</option>
-              <option value="create">Create</option>
-              <option value="update">Update</option>
-              <option value="delete">Delete</option>
-              <option value="login">Login</option>
-              <option value="export">Export</option>
-            </Select>
-            <Select value={auditEntity} onChange={(event) => setAuditEntity(event.target.value)}>
-              <option value="">All entities</option>
-              <option value="organization">Organization</option>
-              <option value="user_invite">User invite</option>
-              <option value="team_member">Team member</option>
-              <option value="product">Product</option>
-              <option value="certificate_extraction">Certificate extraction</option>
-            </Select>
-          </div>
-        </div>
-        {auditQuery.isFetching ? (
-          <LoadingState label="Loading audit trail" />
-        ) : auditQuery.data?.items.length ? (
-          <div className="space-y-3">
-            {auditQuery.data.items.map((log) => (
-              <div key={log.id} className="flex flex-col justify-between gap-2 rounded-md border border-border px-4 py-3 text-sm md:flex-row md:items-center">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{log.description ?? `${formatAuditAction(log.action)} ${log.entity_type.replace("_", " ")}`}</span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      <Filter size={12} /> {log.action}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-muted-foreground">
-                    {log.actor_full_name ?? log.actor_email ?? "System"} · {log.entity_id ?? "Organization scope"}
-                  </div>
-                  {Object.keys(log.metadata_json).length ? (
-                    <div className="mt-1 truncate text-xs text-muted-foreground">
-                      {JSON.stringify(log.metadata_json)}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</div>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_150px_180px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-muted-foreground" size={16} />
+                <Input
+                  className="pl-9"
+                  placeholder="Search actor or entity"
+                  value={auditSearch}
+                  onChange={(event) => setAuditSearch(event.target.value)}
+                />
               </div>
-            ))}
+              <Select value={auditAction} onChange={(event) => setAuditAction(event.target.value)}>
+                <option value="">All actions</option>
+                <option value="create">Create</option>
+                <option value="update">Update</option>
+                <option value="delete">Delete</option>
+                <option value="login">Login</option>
+                <option value="export">Export</option>
+              </Select>
+              <Select value={auditEntity} onChange={(event) => setAuditEntity(event.target.value)}>
+                <option value="">All entities</option>
+                <option value="organization">Organization</option>
+                <option value="user_invite">User invite</option>
+                <option value="team_member">Team member</option>
+                <option value="product">Product</option>
+                <option value="certificate_extraction">Certificate extraction</option>
+              </Select>
+            </div>
           </div>
-        ) : (
-          <EmptyState title="No audit activity yet" />
-        )}
-      </section>
+          {auditQuery.isFetching ? (
+            <LoadingState label="Loading audit trail" />
+          ) : auditQuery.data?.items.length ? (
+            <div className="space-y-3">
+              {auditQuery.data.items.map((log) => (
+                <div key={log.id} className="flex flex-col justify-between gap-2 rounded-md border border-border px-4 py-3 text-sm md:flex-row md:items-center">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{log.description ?? `${formatAuditAction(log.action)} ${log.entity_type.replace("_", " ")}`}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        <Filter size={12} /> {log.action}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-muted-foreground">
+                      {log.actor_full_name ?? log.actor_email ?? "System"} · {log.entity_id ?? "Organization scope"}
+                    </div>
+                    {Object.keys(log.metadata_json).length ? (
+                      <div className="mt-1 truncate text-xs text-muted-foreground">
+                        {JSON.stringify(log.metadata_json)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="text-muted-foreground">{new Date(log.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No audit activity yet" />
+          )}
+        </section>
+      ) : (
+        <EmptyState title="Audit trail restricted">
+          Organization activity logs are available to organization admins.
+        </EmptyState>
+      )}
     </div>
   );
 }

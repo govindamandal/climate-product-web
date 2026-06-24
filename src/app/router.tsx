@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProtectedRoute } from "@/routes/protected-route";
+import { RoleGate } from "@/routes/role-gate";
 import { LoginPage } from "@/features/auth/login-page";
 import { RegisterPage } from "@/features/auth/register-page";
 import { ResetPasswordPage } from "@/features/auth/reset-password-page";
@@ -39,7 +40,16 @@ export const router = createBrowserRouter([
           { path: "passports", element: <RoutePage><PassportsPage /></RoutePage> },
           { path: "benchmarking", element: <RoutePage><BenchmarkingPage /></RoutePage> },
           { path: "organization", element: <RoutePage><OrganizationPage /></RoutePage> },
-          { path: "platform", element: <RoutePage><PlatformPage /></RoutePage> },
+          {
+            path: "platform",
+            element: (
+              <RoutePage>
+                <RoleGate allow={["super_admin"]}>
+                  <PlatformPage />
+                </RoleGate>
+              </RoutePage>
+            ),
+          },
           { path: "advisor", element: <RoutePage><AdvisorPage /></RoutePage> },
           { path: "reports", element: <RoutePage><ReportsPage /></RoutePage> },
           { path: "compliance", element: <RoutePage><CompliancePage /></RoutePage> },

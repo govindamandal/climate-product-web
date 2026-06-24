@@ -12,8 +12,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { api, Product } from "@/lib/api";
+import { permissionsFor } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ProductForm, ProductFormValues } from "@/features/products/product-form";
+import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 
 const PAGE_SIZE = 10;
@@ -26,7 +28,9 @@ export function ProductsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const addToast = useToastStore((state) => state.addToast);
+  const permissions = permissionsFor(user);
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["products", search, category, page],
     queryFn: () => api.products({ search, category, page, pageSize: PAGE_SIZE }),
@@ -126,6 +130,7 @@ export function ProductsPage() {
       cell: (row) => (
         <ProductActionMenu
           product={row}
+          canDelete={permissions.canDeleteProducts}
           deleting={deleteMutation.isPending}
           onEdit={() => navigate(`/products/${row.id}`)}
           onDelete={() => {
@@ -213,6 +218,7 @@ export function ProductsPage() {
 
 function ProductActionMenu({
   product,
+  canDelete,
   deleting,
   onEdit,
   onDelete,
@@ -220,6 +226,7 @@ function ProductActionMenu({
   onAdvisor,
 }: {
   product: Product;
+  canDelete: boolean;
   deleting: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -236,7 +243,7 @@ function ProductActionMenu({
     const buttonRect = buttonRef.current?.getBoundingClientRect();
     if (buttonRect) {
       const menuWidth = 176;
-      const menuHeight = 152;
+      const menuHeight = canDelete ? 152 : 116;
       const margin = 8;
       const preferredLeft = buttonRect.right - menuWidth;
       const preferredTop = buttonRect.bottom + 6;
@@ -259,7 +266,7 @@ function ProductActionMenu({
     return () => {
       window.removeEventListener("mousedown", close);
     };
-  }, [open]);
+  }, [canDelete, open]);
 
   const choose = (action: () => void) => {
     setOpen(false);
@@ -276,14 +283,16 @@ function ProductActionMenu({
       <MenuItem icon={<Pencil size={15} />} onClick={() => choose(onEdit)}>Edit</MenuItem>
       <MenuItem icon={<FileText size={15} />} onClick={() => choose(onReport)}>Report</MenuItem>
       <MenuItem icon={<Brain size={15} />} onClick={() => choose(onAdvisor)}>AI Advisory</MenuItem>
-      <MenuItem
-        destructive
-        disabled={deleting}
-        icon={<Trash2 size={15} />}
-        onClick={() => choose(onDelete)}
-      >
-        Delete
-      </MenuItem>
+      {canDelete ? (
+        <MenuItem
+          destructive
+          disabled={deleting}
+          icon={<Trash2 size={15} />}
+          onClick={() => choose(onDelete)}
+        >
+          Delete
+        </MenuItem>
+      ) : null}
     </div>
   ) : null;
 

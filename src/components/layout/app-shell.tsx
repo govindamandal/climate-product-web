@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
+import { roleLabel } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 const tenantNav = [
@@ -123,7 +124,12 @@ export function AppShell() {
             </Button>
             <div className="min-w-0">
               <div className="text-sm text-muted-foreground">Tenant workspace</div>
-              <div className="truncate font-semibold">{user?.full_name ?? "Demo user"}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate font-semibold">{user?.full_name ?? "Demo user"}</span>
+                <span className="rounded-full border border-border bg-card px-2 py-0.5 text-xs text-muted-foreground">
+                  {roleLabel(user)}
+                </span>
+              </div>
             </div>
           </div>
           <Button

@@ -9,6 +9,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
 import { buildPassportPayload, openJsonViewer, openProductPassportPdf, printProductPassport } from "@/lib/exports";
+import { permissionsFor } from "@/lib/permissions";
+import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 import {
   EnvironmentalRecordForm,
@@ -23,7 +25,9 @@ export function ProductDetailPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const addToast = useToastStore((state) => state.addToast);
+  const permissions = permissionsFor(user);
   const { data, isLoading } = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
   const updateMutation = useMutation({
     mutationFn: (values: ProductEditFormValues) => api.updateProduct(productId, values),
@@ -144,13 +148,15 @@ export function ProductDetailPage() {
             >
               <FileJson size={16} /> JSON
             </Button>
-            <Button
-              variant="secondary"
-              disabled={shareMutation.isPending}
-              onClick={() => shareMutation.mutate()}
-            >
-              <Share2 size={16} /> Share
-            </Button>
+            {permissions.canSharePassports ? (
+              <Button
+                variant="secondary"
+                disabled={shareMutation.isPending}
+                onClick={() => shareMutation.mutate()}
+              >
+                <Share2 size={16} /> Share
+              </Button>
+            ) : null}
             <Button
               onClick={() => {
                 openProductPassportPdf(data);
@@ -159,9 +165,11 @@ export function ProductDetailPage() {
             >
               <Download size={16} /> PDF
             </Button>
-            <Button variant="danger" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
-              <Trash2 size={16} /> Delete
-            </Button>
+            {permissions.canDeleteProducts ? (
+              <Button variant="danger" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                <Trash2 size={16} /> Delete
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

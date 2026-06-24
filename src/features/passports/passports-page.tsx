@@ -6,12 +6,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { api } from "@/lib/api";
 import { buildPassportPayload, openJsonViewer, openProductPassportPdf, printProductPassport } from "@/lib/exports";
+import { permissionsFor } from "@/lib/permissions";
+import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
 
 export function PassportsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["products", "passports"], queryFn: () => api.products() });
   const [sharingProductId, setSharingProductId] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
   const addToast = useToastStore((state) => state.addToast);
+  const permissions = permissionsFor(user);
   const shareMutation = useMutation({
     mutationFn: (productId: string) => api.createPassportShare(productId),
     onSuccess: async (share) => {
@@ -68,17 +72,19 @@ export function PassportsPage() {
                 >
                   <FileJson size={15} /> JSON
                 </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={shareMutation.isPending && sharingProductId === product.id}
-                  onClick={() => {
-                    setSharingProductId(product.id);
-                    shareMutation.mutate(product.id);
-                  }}
-                >
-                  <Share2 size={15} /> Share
-                </Button>
+                {permissions.canSharePassports ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={shareMutation.isPending && sharingProductId === product.id}
+                    onClick={() => {
+                      setSharingProductId(product.id);
+                      shareMutation.mutate(product.id);
+                    }}
+                  >
+                    <Share2 size={15} /> Share
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   onClick={() => {

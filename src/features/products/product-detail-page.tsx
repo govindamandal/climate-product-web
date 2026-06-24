@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileJson, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
+import { Calculator, Download, FileJson, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,7 @@ export function ProductDetailPage() {
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setEditOpen(true)}><Pencil size={16} /> Edit</Button>
             <Button variant="secondary" onClick={() => setRecordOpen(true)}><Plus size={16} /> Record</Button>
+            <Button variant="secondary" onClick={() => navigate(`/lca?productId=${data.id}`)}><Calculator size={16} /> LCA</Button>
             <Button
               variant="secondary"
               onClick={() => {

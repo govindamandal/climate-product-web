@@ -239,6 +239,49 @@ export type ComplianceReport = {
   markdown: string;
   report_json: Record<string, unknown>;
 };
+export type EmissionFactor = {
+  id: string;
+  organization_id: string | null;
+  name: string;
+  category: string;
+  lifecycle_stage: string;
+  unit: string;
+  factor_kg_co2e: number;
+  geography: string;
+  source: string;
+  version: string;
+  notes: string;
+};
+export type LcaInput = {
+  stage: string;
+  activity_name: string;
+  quantity: number;
+  unit: string;
+  emission_factor_id?: string;
+  emission_factor_kg_co2e?: number;
+  data_quality: "measured" | "hybrid" | "estimated";
+  notes?: string;
+};
+export type LcaCalculation = {
+  id: string;
+  organization_id: string;
+  product_id: string;
+  created_by_user_id: string | null;
+  declared_unit: string;
+  boundary: string;
+  method_version: string;
+  total_kg_co2e: number;
+  confidence: string;
+  inputs_json: Array<Record<string, unknown>>;
+  stage_totals_json: Record<string, number>;
+  result_json: Record<string, unknown>;
+  notes: string;
+  created_at: string;
+};
+export type LcaCalculationList = {
+  items: LcaCalculation[];
+  total: number;
+};
 export type PassportShare = {
   id: string;
   product_id: string;
@@ -444,6 +487,21 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  emissionFactors: (query: { search?: string; category?: string; stage?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (query.search) params.set("search", query.search);
+    if (query.category) params.set("category", query.category);
+    if (query.stage) params.set("stage", query.stage);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<EmissionFactor[]>(`/lca/emission-factors${suffix}`);
+  },
+  createLcaCalculation: (productId: string, payload: { declared_unit: string; boundary: string; notes?: string; inputs: LcaInput[] }) =>
+    request<LcaCalculation>(`/lca/products/${productId}/calculations`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  lcaCalculations: (productId: string) =>
+    request<LcaCalculationList>(`/lca/products/${productId}/calculations`),
   certificates: () => request<CertificateExtractionList>("/certificates"),
   extractCertificate: (payload: { file: File; productId?: string }) => {
     const formData = new FormData();

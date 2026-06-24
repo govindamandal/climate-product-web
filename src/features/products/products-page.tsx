@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Brain, ChevronLeft, ChevronRight, FileText, FileUp, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Brain, Calculator, ChevronLeft, ChevronRight, FileText, FileUp, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -140,6 +140,7 @@ export function ProductsPage() {
           }}
           onReport={() => navigate(`/reports?productId=${row.id}&generate=1`)}
           onAdvisor={() => navigate(`/advisor?productId=${row.id}&generate=1`)}
+          onLca={() => navigate(`/lca?productId=${row.id}`)}
         />
       ),
     },
@@ -224,6 +225,7 @@ function ProductActionMenu({
   onDelete,
   onReport,
   onAdvisor,
+  onLca,
 }: {
   product: Product;
   canDelete: boolean;
@@ -232,6 +234,7 @@ function ProductActionMenu({
   onDelete: () => void;
   onReport: () => void;
   onAdvisor: () => void;
+  onLca: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState({ left: 0, top: 0 });
@@ -243,7 +246,7 @@ function ProductActionMenu({
     const buttonRect = buttonRef.current?.getBoundingClientRect();
     if (buttonRect) {
       const menuWidth = 176;
-      const menuHeight = canDelete ? 152 : 116;
+      const menuHeight = canDelete ? 188 : 152;
       const margin = 8;
       const preferredLeft = buttonRect.right - menuWidth;
       const preferredTop = buttonRect.bottom + 6;
@@ -281,6 +284,7 @@ function ProductActionMenu({
       style={{ left: position.left, top: position.top }}
     >
       <MenuItem icon={<Pencil size={15} />} onClick={() => choose(onEdit)}>Edit</MenuItem>
+      <MenuItem icon={<Calculator size={15} />} onClick={() => choose(onLca)}>LCA</MenuItem>
       <MenuItem icon={<FileText size={15} />} onClick={() => choose(onReport)}>Report</MenuItem>
       <MenuItem icon={<Brain size={15} />} onClick={() => choose(onAdvisor)}>AI Advisory</MenuItem>
       {canDelete ? (

@@ -15,6 +15,7 @@ const ProductsPage = lazy(() => import("@/features/products/products-page").then
 const ProductDetailPage = lazy(() => import("@/features/products/product-detail-page").then((m) => ({ default: m.ProductDetailPage })));
 const PassportsPage = lazy(() => import("@/features/passports/passports-page").then((m) => ({ default: m.PassportsPage })));
 const BenchmarkingPage = lazy(() => import("@/features/benchmarking/benchmarking-page").then((m) => ({ default: m.BenchmarkingPage })));
+const LcaPage = lazy(() => import("@/features/lca/lca-page").then((m) => ({ default: m.LcaPage })));
 const OrganizationPage = lazy(() => import("@/features/organization/organization-page").then((m) => ({ default: m.OrganizationPage })));
 const PlatformPage = lazy(() => import("@/features/platform/platform-page").then((m) => ({ default: m.PlatformPage })));
 const AdvisorPage = lazy(() => import("@/features/ai/advisor-page").then((m) => ({ default: m.AdvisorPage })));
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
           { path: "products/:productId", element: <RoutePage><ProductDetailPage /></RoutePage> },
           { path: "passports", element: <RoutePage><PassportsPage /></RoutePage> },
           { path: "benchmarking", element: <RoutePage><BenchmarkingPage /></RoutePage> },
+          { path: "lca", element: <RoutePage><LcaPage /></RoutePage> },
           { path: "organization", element: <RoutePage><OrganizationPage /></RoutePage> },
           {
             path: "platform",

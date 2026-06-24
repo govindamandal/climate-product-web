@@ -211,6 +211,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  acceptInvite: (payload: { token: string; password: string }) =>
+    request<AuthTokens>("/auth/accept-invite", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   me: () => request<User>("/auth/me"),
   currentOrganization: () => request<Organization>("/organizations/current"),
   team: () => request<Team>("/organizations/team"),

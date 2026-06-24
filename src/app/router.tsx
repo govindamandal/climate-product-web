@@ -5,6 +5,7 @@ import { ProtectedRoute } from "@/routes/protected-route";
 import { LoginPage } from "@/features/auth/login-page";
 import { RegisterPage } from "@/features/auth/register-page";
 import { ResetPasswordPage } from "@/features/auth/reset-password-page";
+import { AcceptInvitePage } from "@/features/auth/accept-invite-page";
 import { RoutePage } from "@/app/route-page";
 
 const DashboardPage = lazy(() => import("@/features/dashboard/dashboard-page").then((m) => ({ default: m.DashboardPage })));
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <RegisterPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/accept-invite", element: <AcceptInvitePage /> },
   {
     element: <ProtectedRoute />,
     children: [

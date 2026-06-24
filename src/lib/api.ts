@@ -147,6 +147,31 @@ export type AuthTokens = {
   refresh_token: string;
   user: User;
 };
+export type AdvisorResult = {
+  product_id: string;
+  provider: string;
+  recommendations: Array<{
+    title: string;
+    category: string;
+    impact: string;
+    rationale: string;
+    next_step: string;
+  }>;
+};
+export type ReportResult = {
+  product_id: string;
+  summary: string;
+  markdown: string;
+};
+export type AIJob = {
+  id: string;
+  organization_id: string;
+  product_id: string;
+  job_type: "advisor" | "report";
+  status: "pending" | "running" | "succeeded" | "failed";
+  result_json: Record<string, unknown> | null;
+  error_message: string | null;
+};
 
 async function refreshSession() {
   const refreshToken = useAuthStore.getState().refreshToken;
@@ -312,19 +337,16 @@ export const api = {
       trend: Array<{ label: string; co2: number; energy: number; water: number }>;
     }>("/analytics/summary"),
   advisor: (id: string) =>
-    request<{
-      recommendations: Array<{
-        title: string;
-        category: string;
-        impact: string;
-        rationale: string;
-        next_step: string;
-      }>;
-    }>(`/ai/products/${id}/advisor`, { method: "POST" }),
+    request<AdvisorResult>(`/ai/products/${id}/advisor`, { method: "POST" }),
+  startAdvisorJob: (id: string) =>
+    request<AIJob>(`/ai/products/${id}/advisor/jobs`, { method: "POST" }),
   report: (id: string) =>
-    request<{ product_id: string; summary: string; markdown: string }>(`/ai/products/${id}/report`, {
+    request<ReportResult>(`/ai/products/${id}/report`, {
       method: "POST",
     }),
+  startReportJob: (id: string) =>
+    request<AIJob>(`/ai/products/${id}/report/jobs`, { method: "POST" }),
+  aiJob: (id: string) => request<AIJob>(`/ai/jobs/${id}`),
   certificates: () => request<CertificateExtractionList>("/certificates"),
   extractCertificate: (payload: { file: File; productId?: string }) => {
     const formData = new FormData();

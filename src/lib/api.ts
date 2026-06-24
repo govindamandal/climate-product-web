@@ -213,6 +213,22 @@ export type BenchmarkResponse = {
     best_score_product_id: string | null;
   };
 };
+export type ComplianceReport = {
+  product_id: string;
+  product_name: string;
+  readiness_score: number;
+  summary: string;
+  sections: string[];
+  checks: Array<{
+    key: string;
+    label: string;
+    status: "ready" | "needs_review" | "missing";
+    evidence: string;
+    recommendation: string;
+  }>;
+  markdown: string;
+  report_json: Record<string, unknown>;
+};
 
 async function refreshSession() {
   const refreshToken = useAuthStore.getState().refreshToken;
@@ -389,6 +405,11 @@ export const api = {
   startReportJob: (id: string) =>
     request<AIJob>(`/ai/products/${id}/report/jobs`, { method: "POST" }),
   aiJob: (id: string) => request<AIJob>(`/ai/jobs/${id}`),
+  complianceReport: (payload: { product_id: string; sections: string[] }) =>
+    request<ComplianceReport>("/compliance/reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   certificates: () => request<CertificateExtractionList>("/certificates"),
   extractCertificate: (payload: { file: File; productId?: string }) => {
     const formData = new FormData();

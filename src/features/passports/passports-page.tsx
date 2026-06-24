@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { Download, FileJson, Printer } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download, FileJson, Printer, Share2 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -9,7 +10,21 @@ import { useToastStore } from "@/stores/toast-store";
 
 export function PassportsPage() {
   const { data, isLoading } = useQuery({ queryKey: ["products", "passports"], queryFn: () => api.products() });
+  const [sharingProductId, setSharingProductId] = useState<string | null>(null);
   const addToast = useToastStore((state) => state.addToast);
+  const shareMutation = useMutation({
+    mutationFn: (productId: string) => api.createPassportShare(productId),
+    onSuccess: async (share) => {
+      await navigator.clipboard.writeText(share.share_url);
+      window.open(share.share_url, "_blank");
+      addToast({ title: "Public passport link copied", variant: "success" });
+      setSharingProductId(null);
+    },
+    onError: () => setSharingProductId(null),
+    meta: {
+      errorMessage: "Could not create public passport link",
+    },
+  });
   if (isLoading) return <LoadingState />;
   const products = data?.items ?? [];
   return (
@@ -52,6 +67,17 @@ export function PassportsPage() {
                   }}
                 >
                   <FileJson size={15} /> JSON
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={shareMutation.isPending && sharingProductId === product.id}
+                  onClick={() => {
+                    setSharingProductId(product.id);
+                    shareMutation.mutate(product.id);
+                  }}
+                >
+                  <Share2 size={15} /> Share
                 </Button>
                 <Button
                   size="sm"

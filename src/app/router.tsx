@@ -8,6 +8,7 @@ import { ResetPasswordPage } from "@/features/auth/reset-password-page";
 import { AcceptInvitePage } from "@/features/auth/accept-invite-page";
 import { RoutePage } from "@/app/route-page";
 
+const PublicPassportPage = lazy(() => import("@/features/passports/public-passport-page").then((m) => ({ default: m.PublicPassportPage })));
 const DashboardPage = lazy(() => import("@/features/dashboard/dashboard-page").then((m) => ({ default: m.DashboardPage })));
 const ProductsPage = lazy(() => import("@/features/products/products-page").then((m) => ({ default: m.ProductsPage })));
 const ProductDetailPage = lazy(() => import("@/features/products/product-detail-page").then((m) => ({ default: m.ProductDetailPage })));
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
   { path: "/register", element: <RegisterPage /> },
   { path: "/reset-password", element: <ResetPasswordPage /> },
   { path: "/accept-invite", element: <AcceptInvitePage /> },
+  { path: "/share/passports/:token", element: <PublicPassportPage /> },
   {
     element: <ProtectedRoute />,
     children: [

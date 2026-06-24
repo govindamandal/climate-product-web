@@ -239,6 +239,21 @@ export type ComplianceReport = {
   markdown: string;
   report_json: Record<string, unknown>;
 };
+export type PassportShare = {
+  id: string;
+  product_id: string;
+  token: string;
+  share_url: string;
+  is_active: boolean;
+  created_at: string;
+};
+export type PublicPassport = {
+  product: Product;
+  latest_environmental_record: EnvironmentalRecord | null;
+  sustainability_score: number;
+  passport_json: Record<string, unknown>;
+  share: PassportShare;
+};
 
 async function refreshSession() {
   const refreshToken = useAuthStore.getState().refreshToken;
@@ -380,6 +395,9 @@ export const api = {
   },
   product: (id: string) => request<Product>(`/products/${id}`),
   passport: (id: string) => request<Record<string, unknown>>(`/passports/${id}`),
+  createPassportShare: (id: string) =>
+    request<PassportShare>(`/passports/${id}/shares`, { method: "POST" }),
+  publicPassport: (token: string) => request<PublicPassport>(`/passports/public/${token}`),
   analytics: () =>
     request<{
       product_count: number;

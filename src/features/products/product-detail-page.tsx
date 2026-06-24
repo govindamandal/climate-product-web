@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Download, FileJson, ImagePlus, Pencil, Plus, Printer, Sparkles, Trash2 } from "lucide-react";
+import { Download, FileJson, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,17 @@ export function ProductDetailPage() {
       errorMessage: "Could not upload product image",
     },
   });
+  const shareMutation = useMutation({
+    mutationFn: () => api.createPassportShare(productId),
+    onSuccess: async (share) => {
+      await navigator.clipboard.writeText(share.share_url);
+      window.open(share.share_url, "_blank");
+      addToast({ title: "Public passport link copied", variant: "success" });
+    },
+    meta: {
+      errorMessage: "Could not create public passport link",
+    },
+  });
   const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) imageMutation.mutate(file);
@@ -80,9 +91,6 @@ export function ProductDetailPage() {
   const latest = data.environmental_records[0];
   return (
     <div className="space-y-6">
-      <Button variant="ghost" className="px-0 text-muted-foreground hover:text-foreground" onClick={() => navigate("/products")}>
-        <ArrowLeft size={16} /> Back to products
-      </Button>
       <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           {data.image_url ? (
@@ -135,6 +143,13 @@ export function ProductDetailPage() {
               }}
             >
               <FileJson size={16} /> JSON
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={shareMutation.isPending}
+              onClick={() => shareMutation.mutate()}
+            >
+              <Share2 size={16} /> Share
             </Button>
             <Button
               onClick={() => {

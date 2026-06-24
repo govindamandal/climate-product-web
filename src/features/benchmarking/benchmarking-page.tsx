@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Award, Droplets, Factory, Scale, Zap } from "lucide-react";
 import {
@@ -13,8 +14,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { KPIWidget } from "@/components/ui/kpi-widget";
 import { LoadingState } from "@/components/ui/loading-state";
-import { api, Product } from "@/lib/api";
-import { useState } from "react";
+import { api, BenchmarkItem } from "@/lib/api";
 
 type MetricKey = "co2_kg" | "water_liters" | "energy_kwh" | "sustainability_score";
 
@@ -26,29 +26,35 @@ const metrics: Array<{ key: MetricKey; label: string; unit: string; lowerIsBette
 ];
 
 export function BenchmarkingPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["products", "benchmarking"], queryFn: () => api.products({ pageSize: 50 }) });
-  const measuredProducts = (data?.items ?? []).filter((product) => product.environmental_records.length);
+  const { data, isLoading } = useQuery({ queryKey: ["benchmarks"], queryFn: api.benchmarks });
+  const measuredProducts = data?.items ?? [];
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   if (isLoading) return <LoadingState label="Loading benchmarking data" />;
 
-  const defaultSelection = measuredProducts.slice(0, 3).map((product) => product.id);
+  const defaultSelection = measuredProducts.slice(0, 4).map((product) => product.product_id);
   const effectiveSelection = selectedIds.length ? selectedIds : defaultSelection;
-  const selectedProducts = measuredProducts.filter((product) => effectiveSelection.includes(product.id));
+  const selectedProducts = measuredProducts.filter((product) => effectiveSelection.includes(product.product_id));
   const bestCarbon = bestBy(selectedProducts, "co2_kg", true);
   const bestWater = bestBy(selectedProducts, "water_liters", true);
   const bestEnergy = bestBy(selectedProducts, "energy_kwh", true);
   const bestScore = bestBy(selectedProducts, "sustainability_score", false);
   const chartData = selectedProducts.map((product) => {
-    const record = product.environmental_records[0];
     return {
       name: product.name,
-      co2: record.co2_kg,
-      water: record.water_liters,
-      energy: record.energy_kwh,
-      score: record.sustainability_score,
+      co2: product.co2_kg,
+      water: product.water_liters,
+      energy: product.energy_kwh,
+      score: product.sustainability_score,
     };
   });
+  const categoryData = data?.category_averages.map((category) => ({
+    category: category.category,
+    co2: category.average_co2,
+    water: category.average_water,
+    energy: category.average_energy,
+    score: category.average_score,
+  })) ?? [];
 
   const toggleProduct = (productId: string) => {
     setSelectedIds((current) => {
@@ -85,10 +91,10 @@ export function BenchmarkingPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {measuredProducts.map((product) => {
-                const checked = effectiveSelection.includes(product.id);
+                const checked = effectiveSelection.includes(product.product_id);
                 return (
                   <label
-                    key={product.id}
+                    key={product.product_id}
                     className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition ${
                       checked ? "border-primary bg-primary/10" : "border-border hover:bg-muted"
                     }`}
@@ -97,7 +103,7 @@ export function BenchmarkingPage() {
                       className="h-4 w-4 accent-primary"
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleProduct(product.id)}
+                      onChange={() => toggleProduct(product.product_id)}
                     />
                     {product.image_url ? (
                       <img className="h-10 w-10 rounded-md object-cover" src={product.image_url} alt="" />
@@ -107,6 +113,9 @@ export function BenchmarkingPage() {
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{product.name}</span>
                       <span className="block text-xs text-muted-foreground">{product.category}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {product.co2_percentile}th carbon percentile
+                      </span>
                     </span>
                   </label>
                 );
@@ -143,6 +152,27 @@ export function BenchmarkingPage() {
             </div>
           </section>
 
+          <section className="rounded-lg border border-border bg-card p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Factory size={18} />
+              <h2 className="font-semibold">Category Peer Averages</h2>
+            </div>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="category" tick={{ fontSize: 12 }} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="co2" name="Avg CO2e kg" fill="#177a68" />
+                  <Bar dataKey="energy" name="Avg energy kWh" fill="#d69a16" />
+                  <Bar dataKey="water" name="Avg water L" fill="#4f8aa8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
           <section className="overflow-x-auto rounded-lg border border-border bg-card">
             <div className="min-w-[860px]">
               <div className="grid grid-cols-[1.6fr_repeat(4,1fr)] gap-x-4 bg-muted px-4 py-3 text-xs font-semibold uppercase text-muted-foreground">
@@ -152,7 +182,7 @@ export function BenchmarkingPage() {
                 ))}
               </div>
               {selectedProducts.map((product) => (
-                <div key={product.id} className="grid grid-cols-[1.6fr_repeat(4,1fr)] items-center gap-x-4 border-t border-border px-4 py-3 text-sm">
+                <div key={product.product_id} className="grid grid-cols-[1.6fr_repeat(4,1fr)] items-center gap-x-4 border-t border-border px-4 py-3 text-sm">
                   <div className="flex min-w-0 items-center gap-3">
                     {product.image_url ? (
                       <img className="h-10 w-10 shrink-0 rounded-md object-cover" src={product.image_url} alt="" />
@@ -162,6 +192,9 @@ export function BenchmarkingPage() {
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{product.name}</span>
                       <span className="block text-xs text-muted-foreground">{product.category}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Score percentile {product.score_percentile}
+                      </span>
                     </span>
                   </div>
                   {metrics.map((metric) => (
@@ -182,31 +215,47 @@ function MetricCell({
   metric,
   selectedProducts,
 }: {
-  product: Product;
+  product: BenchmarkItem;
   metric: MetricKey;
-  selectedProducts: Product[];
+  selectedProducts: BenchmarkItem[];
 }) {
-  const value = product.environmental_records[0][metric];
+  const value = product[metric];
   const definition = metrics.find((item) => item.key === metric)!;
   const best = bestBy(selectedProducts, metric, definition.lowerIsBetter);
-  const isBest = best?.id === product.id;
+  const isBest = best?.product_id === product.product_id;
   return (
-    <span className={isBest ? "font-semibold text-primary" : undefined}>
-      {value.toLocaleString()} {definition.unit}
-    </span>
+    <div>
+      <span className={isBest ? "font-semibold text-primary" : undefined}>
+        {value.toLocaleString()} {definition.unit}
+      </span>
+      <span className="mt-1 block text-xs text-muted-foreground">
+        {formatCategoryDelta(product, metric)}
+      </span>
+    </div>
   );
 }
 
-function bestBy(products: Product[], metric: MetricKey, lowerIsBetter: boolean) {
-  return products.reduce<Product | null>((best, product) => {
+function bestBy(products: BenchmarkItem[], metric: MetricKey, lowerIsBetter: boolean) {
+  return products.reduce<BenchmarkItem | null>((best, product) => {
     if (!best) return product;
-    const value = product.environmental_records[0][metric];
-    const bestValue = best.environmental_records[0][metric];
+    const value = product[metric];
+    const bestValue = best[metric];
     return lowerIsBetter ? (value < bestValue ? product : best) : (value > bestValue ? product : best);
   }, null);
 }
 
-function formatWinner(product: Product | null, metric: MetricKey, unit: string) {
+function formatWinner(product: BenchmarkItem | null, metric: MetricKey, unit: string) {
   if (!product) return "No data";
-  return `${product.environmental_records[0][metric].toLocaleString()} ${unit}`;
+  return `${product[metric].toLocaleString()} ${unit}`;
+}
+
+function formatCategoryDelta(product: BenchmarkItem, metric: MetricKey) {
+  if (metric === "co2_kg") return `${formatSigned(product.co2_vs_category_pct)}% vs category`;
+  if (metric === "water_liters") return `${formatSigned(product.water_vs_category_pct)}% vs category`;
+  if (metric === "energy_kwh") return `${formatSigned(product.energy_vs_category_pct)}% vs category`;
+  return `${formatSigned(product.score_vs_category_points)} pts vs category`;
+}
+
+function formatSigned(value: number) {
+  return value > 0 ? `+${value}` : String(value);
 }

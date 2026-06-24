@@ -172,6 +172,47 @@ export type AIJob = {
   result_json: Record<string, unknown> | null;
   error_message: string | null;
 };
+export type BenchmarkItem = {
+  product_id: string;
+  name: string;
+  category: string;
+  manufacturer: string;
+  image_url: string | null;
+  co2_kg: number;
+  water_liters: number;
+  energy_kwh: number;
+  transportation_kg_co2: number;
+  sustainability_score: number;
+  co2_percentile: number;
+  water_percentile: number;
+  energy_percentile: number;
+  score_percentile: number;
+  category_average_co2: number;
+  category_average_water: number;
+  category_average_energy: number;
+  category_average_score: number;
+  co2_vs_category_pct: number;
+  water_vs_category_pct: number;
+  energy_vs_category_pct: number;
+  score_vs_category_points: number;
+};
+export type BenchmarkResponse = {
+  items: BenchmarkItem[];
+  category_averages: Array<{
+    category: string;
+    measured_products: number;
+    average_co2: number;
+    average_water: number;
+    average_energy: number;
+    average_score: number;
+  }>;
+  portfolio: {
+    measured_products: number;
+    category_count: number;
+    best_carbon_product_id: string | null;
+    best_score_product_id: string | null;
+  };
+};
 
 async function refreshSession() {
   const refreshToken = useAuthStore.getState().refreshToken;
@@ -336,6 +377,7 @@ export const api = {
       score_distribution: Array<{ label: string; count: number }>;
       trend: Array<{ label: string; co2: number; energy: number; water: number }>;
     }>("/analytics/summary"),
+  benchmarks: () => request<BenchmarkResponse>("/analytics/benchmarks"),
   advisor: (id: string) =>
     request<AdvisorResult>(`/ai/products/${id}/advisor`, { method: "POST" }),
   startAdvisorJob: (id: string) =>

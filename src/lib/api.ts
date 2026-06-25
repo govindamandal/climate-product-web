@@ -96,12 +96,41 @@ export type Product = {
   manufacturer: string;
   country: string;
   production_method: string;
+  product_code: string;
+  declared_unit: string;
+  functional_unit: string;
+  lifecycle_scope: string;
+  reference_service_life_years: number | null;
+  manufacturing_site: string;
+  plant_code: string;
+  product_standard: string;
+  pcr: string;
+  geography: string;
+  data_quality: string;
+  technical_properties: Record<string, unknown>;
   image_url: string | null;
   material_composition: Record<string, unknown>;
+  material_components: ProductMaterialComponent[];
   certifications: Array<Record<string, unknown>>;
   environmental_records: EnvironmentalRecord[];
   created_at: string;
   updated_at: string;
+};
+
+export type ProductMaterialComponent = {
+  id?: string;
+  product_id?: string;
+  material_name: string;
+  category: string;
+  percentage: number;
+  recycled_content_pct: number;
+  bio_based_content_pct: number;
+  supplier: string;
+  origin_country: string;
+  evidence_reference: string;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type EnvironmentalRecord = {

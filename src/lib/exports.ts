@@ -11,9 +11,22 @@ type PassportPayload = {
     | "manufacturer"
     | "country"
     | "production_method"
+    | "product_code"
+    | "declared_unit"
+    | "functional_unit"
+    | "lifecycle_scope"
+    | "reference_service_life_years"
+    | "manufacturing_site"
+    | "plant_code"
+    | "product_standard"
+    | "pcr"
+    | "geography"
+    | "data_quality"
+    | "technical_properties"
     | "image_url"
   >;
   material_composition: Product["material_composition"];
+  material_components: Product["material_components"];
   certifications: Product["certifications"];
   environmental_metrics: Product["environmental_records"][number] | null;
   sustainability_score: number;
@@ -32,9 +45,22 @@ export function buildPassportPayload(product: Product): PassportPayload {
       manufacturer: product.manufacturer,
       country: product.country,
       production_method: product.production_method,
+      product_code: product.product_code,
+      declared_unit: product.declared_unit,
+      functional_unit: product.functional_unit,
+      lifecycle_scope: product.lifecycle_scope,
+      reference_service_life_years: product.reference_service_life_years,
+      manufacturing_site: product.manufacturing_site,
+      plant_code: product.plant_code,
+      product_standard: product.product_standard,
+      pcr: product.pcr,
+      geography: product.geography,
+      data_quality: product.data_quality,
+      technical_properties: product.technical_properties,
       image_url: product.image_url,
     },
     material_composition: product.material_composition,
+    material_components: product.material_components,
     certifications: product.certifications,
     environmental_metrics: latest,
     sustainability_score: latest?.sustainability_score ?? 0,
@@ -143,6 +169,10 @@ export function openProductPassportPdf(product: Product) {
       ["Manufacturer", product.manufacturer],
       ["Country", product.country],
       ["Production Method", product.production_method],
+      ["Declared Unit", product.declared_unit],
+      ["Lifecycle Scope", product.lifecycle_scope],
+      ["Plant", product.plant_code || product.manufacturing_site || "Not specified"],
+      ["Data Quality", product.data_quality],
     ],
     metrics: latest
       ? [
@@ -153,7 +183,14 @@ export function openProductPassportPdf(product: Product) {
           ["Recyclability", `${latest.recyclability_score}/100`],
         ]
       : [],
-    materialComposition: JSON.stringify(product.material_composition, null, 2),
+    materialComposition: JSON.stringify(
+      {
+        legacy_composition: product.material_composition,
+        components: product.material_components,
+      },
+      null,
+      2,
+    ),
     certifications: JSON.stringify(product.certifications, null, 2),
   });
   const blob = new Blob([pdf], { type: "application/pdf" });
@@ -256,6 +293,13 @@ export function printProductPassport(product: Product) {
             ${field("Manufacturer", product.manufacturer)}
             ${field("Country", product.country)}
             ${field("Production Method", product.production_method)}
+            ${field("Product Code", product.product_code || "Not specified")}
+            ${field("Declared Unit", product.declared_unit)}
+            ${field("Lifecycle Scope", product.lifecycle_scope)}
+            ${field("Plant", product.plant_code || product.manufacturing_site || "Not specified")}
+            ${field("Product Standard", product.product_standard || "Not specified")}
+            ${field("PCR", product.pcr || "Not specified")}
+            ${field("Data Quality", product.data_quality)}
           </div>
         </section>
 
@@ -279,7 +323,22 @@ export function printProductPassport(product: Product) {
 
         <section>
           <h2>Material Composition</h2>
-          <pre>${escapeHtml(JSON.stringify(product.material_composition, null, 2))}</pre>
+          ${
+            product.material_components.length
+              ? `<table>
+                  <tr><th>Material</th><th>Category</th><th>Share</th><th>Recycled</th><th>Origin</th></tr>
+                  ${product.material_components.map((component) => `
+                    <tr>
+                      <td>${escapeHtml(component.material_name)}</td>
+                      <td>${escapeHtml(component.category || "Material")}</td>
+                      <td>${component.percentage}%</td>
+                      <td>${component.recycled_content_pct}%</td>
+                      <td>${escapeHtml(component.origin_country || "Not specified")}</td>
+                    </tr>
+                  `).join("")}
+                </table>`
+              : `<pre>${escapeHtml(JSON.stringify(product.material_composition, null, 2))}</pre>`
+          }
         </section>
 
         <section>
@@ -344,7 +403,7 @@ function createPassportPdf(document: PassportPdfDocument) {
     textBlock(commands, value, x + 12, boxY - 25, 11, 13, text, 31, "F2");
   });
 
-  y -= 120;
+  y -= Math.ceil(document.metadata.length / 2) * 56 + 16;
   textLine(commands, "Environmental Metrics", page.margin, y, 15, text, "F2");
   y -= 24;
   if (document.metrics.length) {

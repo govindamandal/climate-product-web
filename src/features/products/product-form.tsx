@@ -1,6 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImagePlus } from "lucide-react";
-import { ChangeEvent, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -13,6 +11,22 @@ const schema = z.object({
   manufacturer: z.string().min(2),
   country: z.string().min(2),
   production_method: z.string().min(2),
+  product_code: z.string().optional(),
+  declared_unit: z.string().min(1),
+  functional_unit: z.string().optional(),
+  lifecycle_scope: z.string().min(2),
+  manufacturing_site: z.string().optional(),
+  plant_code: z.string().optional(),
+  product_standard: z.string().optional(),
+  pcr: z.string().optional(),
+  geography: z.string().optional(),
+  data_quality: z.string().min(2),
+  reference_service_life_years: z.coerce.number().min(0).max(200).optional(),
+  primary_material: z.string().optional(),
+  primary_material_pct: z.coerce.number().min(0).max(100).optional(),
+  primary_material_supplier: z.string().optional(),
+  primary_material_origin_country: z.string().optional(),
+  compressive_strength_mpa: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
   recycled_content_pct: z.coerce.number().min(0).max(100).optional(),
   certification_name: z.string().optional(),
@@ -24,7 +38,7 @@ const schema = z.object({
   sustainability_score: z.coerce.number().min(0).max(100).optional(),
 });
 
-export type ProductFormValues = z.infer<typeof schema> & { image_file?: File };
+export type ProductFormValues = z.infer<typeof schema>;
 
 export function ProductForm({
   onSubmit,
@@ -38,22 +52,18 @@ export function ProductForm({
     defaultValues: {
       category: "Concrete",
       country: "Germany",
-      manufacturer: "Demo Manufacturing",
+      manufacturer: "Emidat Demo Manufacturing",
       production_method: "Verified batch production",
+      declared_unit: "1 m3",
+      lifecycle_scope: "cradle-to-gate",
+      data_quality: "estimated",
+      primary_material_pct: 100,
       recyclability_score: 80,
       sustainability_score: 80,
     },
   });
-  const [imageFile, setImageFile] = useState<File | undefined>();
-  const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setImageFile(event.target.files?.[0]);
-  };
-
   return (
-    <form
-      className="grid gap-4 md:grid-cols-2"
-      onSubmit={form.handleSubmit((values) => onSubmit({ ...values, image_file: imageFile }))}
-    >
+    <form className="grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
       <Input placeholder="Product name" {...form.register("name")} />
       <Select {...form.register("category")}>
         {["Concrete", "Cement", "Steel", "Brick", "Glass", "Timber", "Insulation"].map((item) => (
@@ -63,6 +73,32 @@ export function ProductForm({
       <Input placeholder="Manufacturer" {...form.register("manufacturer")} />
       <Input placeholder="Country" {...form.register("country")} />
       <Input className="md:col-span-2" placeholder="Production method" {...form.register("production_method")} />
+      <Input placeholder="Product code / SKU" {...form.register("product_code")} />
+      <Input placeholder="Declared unit" {...form.register("declared_unit")} />
+      <Input className="md:col-span-2" placeholder="Functional unit" {...form.register("functional_unit")} />
+      <Select {...form.register("lifecycle_scope")}>
+        <option value="cradle-to-gate">Cradle to gate</option>
+        <option value="cradle-to-site">Cradle to site</option>
+        <option value="cradle-to-grave">Cradle to grave</option>
+        <option value="module-specific">Module specific</option>
+      </Select>
+      <Select {...form.register("data_quality")}>
+        <option value="estimated">Estimated</option>
+        <option value="hybrid">Hybrid</option>
+        <option value="measured">Measured</option>
+        <option value="verified">Verified</option>
+      </Select>
+      <Input placeholder="Manufacturing site" {...form.register("manufacturing_site")} />
+      <Input placeholder="Plant code" {...form.register("plant_code")} />
+      <Input placeholder="Product standard" {...form.register("product_standard")} />
+      <Input placeholder="PCR" {...form.register("pcr")} />
+      <Input placeholder="Geography" {...form.register("geography")} />
+      <Input placeholder="Reference service life years" type="number" min="0" max="200" {...form.register("reference_service_life_years")} />
+      <Input placeholder="Primary material" {...form.register("primary_material")} />
+      <Input placeholder="Primary material %" type="number" min="0" max="100" {...form.register("primary_material_pct")} />
+      <Input placeholder="Primary material supplier" {...form.register("primary_material_supplier")} />
+      <Input placeholder="Material origin country" {...form.register("primary_material_origin_country")} />
+      <Input placeholder="Compressive strength MPa" type="number" min="0" step="0.1" {...form.register("compressive_strength_mpa")} />
       <Input className="md:col-span-2" placeholder="Description" {...form.register("description")} />
       <Input placeholder="Recycled content %" type="number" min="0" max="100" {...form.register("recycled_content_pct")} />
       <Input placeholder="Certification name" {...form.register("certification_name")} />
@@ -72,20 +108,6 @@ export function ProductForm({
       <Input placeholder="Transport CO2e kg" type="number" min="0" step="0.1" {...form.register("transportation_kg_co2")} />
       <Input placeholder="Recyclability score" type="number" min="0" max="100" {...form.register("recyclability_score")} />
       <Input placeholder="Sustainability score" type="number" min="0" max="100" {...form.register("sustainability_score")} />
-      <label className="flex min-h-24 cursor-pointer flex-col justify-center rounded-md border border-dashed border-border bg-muted/40 px-4 py-3 text-sm transition hover:bg-muted md:col-span-2">
-        <span className="flex items-center gap-2 font-medium">
-          <ImagePlus size={16} /> Product image
-        </span>
-        <span className="mt-1 text-muted-foreground">
-          {imageFile ? imageFile.name : "Upload JPG, PNG, or WebP after product creation."}
-        </span>
-        <input
-          className="sr-only"
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={onImageChange}
-        />
-      </label>
       <Button className="md:col-span-2" disabled={pending}>
         Create product
       </Button>

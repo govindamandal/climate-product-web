@@ -45,10 +45,39 @@ export function ProductsPage() {
         manufacturer: values.manufacturer,
         country: values.country,
         production_method: values.production_method,
+        product_code: values.product_code ?? "",
+        declared_unit: values.declared_unit,
+        functional_unit: values.functional_unit ?? "",
+        lifecycle_scope: values.lifecycle_scope,
+        reference_service_life_years: values.reference_service_life_years || null,
+        manufacturing_site: values.manufacturing_site ?? "",
+        plant_code: values.plant_code ?? "",
+        product_standard: values.product_standard ?? "",
+        pcr: values.pcr ?? "",
+        geography: values.geography ?? values.country,
+        data_quality: values.data_quality,
+        technical_properties: values.compressive_strength_mpa
+          ? { compressive_strength_mpa: values.compressive_strength_mpa }
+          : {},
         material_composition: {
           primary: values.category,
           recycled_content_pct: values.recycled_content_pct ?? 0,
         },
+        material_components: values.primary_material
+          ? [
+              {
+                material_name: values.primary_material,
+                category: values.category,
+                percentage: values.primary_material_pct ?? 100,
+                recycled_content_pct: values.recycled_content_pct ?? 0,
+                bio_based_content_pct: 0,
+                supplier: values.primary_material_supplier ?? "",
+                origin_country: values.primary_material_origin_country ?? values.country,
+                evidence_reference: "",
+                sort_order: 0,
+              },
+            ]
+          : [],
         certifications: certification ? [{ name: certification, status: "uploaded" }] : [],
         environmental_record:
           values.co2_kg === undefined

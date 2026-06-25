@@ -30,7 +30,40 @@ export function ProductDetailPage() {
   const permissions = permissionsFor(user);
   const { data, isLoading } = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
   const updateMutation = useMutation({
-    mutationFn: (values: ProductEditFormValues) => api.updateProduct(productId, values),
+    mutationFn: (values: ProductEditFormValues) => api.updateProduct(productId, {
+      name: values.name,
+      category: values.category,
+      description: values.description ?? "",
+      manufacturer: values.manufacturer,
+      country: values.country,
+      production_method: values.production_method,
+      product_code: values.product_code ?? "",
+      declared_unit: values.declared_unit,
+      functional_unit: values.functional_unit ?? "",
+      lifecycle_scope: values.lifecycle_scope,
+      reference_service_life_years: values.reference_service_life_years || null,
+      manufacturing_site: values.manufacturing_site ?? "",
+      plant_code: values.plant_code ?? "",
+      product_standard: values.product_standard ?? "",
+      pcr: values.pcr ?? "",
+      geography: values.geography ?? values.country,
+      data_quality: values.data_quality,
+      material_components: values.primary_material
+        ? [
+            {
+              material_name: values.primary_material,
+              category: values.category,
+              percentage: values.primary_material_pct ?? 100,
+              recycled_content_pct: data?.material_components[0]?.recycled_content_pct ?? 0,
+              bio_based_content_pct: data?.material_components[0]?.bio_based_content_pct ?? 0,
+              supplier: values.primary_material_supplier ?? "",
+              origin_country: values.primary_material_origin_country ?? values.country,
+              evidence_reference: data?.material_components[0]?.evidence_reference ?? "",
+              sort_order: 0,
+            },
+          ]
+        : [],
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["product", productId] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -187,7 +220,21 @@ export function ProductDetailPage() {
           <Field label="Manufacturer" value={data.manufacturer} />
           <Field label="Country" value={data.country} />
           <Field label="Production method" value={data.production_method} />
+          <Field label="Product code" value={data.product_code || "Not specified"} />
+          <Field label="Declared unit" value={data.declared_unit} />
+          <Field label="Lifecycle scope" value={data.lifecycle_scope} />
+          <Field label="Manufacturing site" value={data.manufacturing_site || "Not specified"} />
+          <Field label="Plant code" value={data.plant_code || "Not specified"} />
+          <Field label="Product standard" value={data.product_standard || "Not specified"} />
+          <Field label="PCR" value={data.pcr || "Not specified"} />
+          <Field label="Data quality" value={data.data_quality} />
           <Field label="Material composition" value={JSON.stringify(data.material_composition)} />
+          <Field
+            label="Material components"
+            value={data.material_components.length
+              ? data.material_components.map((item) => `${item.material_name} ${item.percentage}%`).join(", ")
+              : "Not specified"}
+          />
           <Field label="Certifications" value={data.certifications.map((item) => String(item.name ?? "Certificate")).join(", ") || "None"} />
         </div>
       </section>

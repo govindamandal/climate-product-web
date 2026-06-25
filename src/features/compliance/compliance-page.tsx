@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { Select } from "@/components/ui/select";
 import { ProductSearchPicker } from "@/features/products/product-search-picker";
 import { ComplianceReport, Product, api } from "@/lib/api";
 import { openJsonViewer } from "@/lib/exports";
@@ -19,9 +20,19 @@ const sections = [
   { key: "dpp_readiness", label: "DPP readiness" },
 ];
 
+const indiaSections = [
+  { key: "india_product_identity", label: "India product identity" },
+  { key: "india_environmental_disclosure", label: "Environmental disclosure" },
+  { key: "india_material_traceability", label: "Material traceability" },
+  { key: "india_certifications", label: "Certificates and standards" },
+  { key: "india_verification", label: "Internal verification" },
+  { key: "india_buyer_pack", label: "Buyer and tender pack" },
+];
+
 export function CompliancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const productId = searchParams.get("productId") ?? "";
+  const [reportType, setReportType] = useState<"standard" | "india">("standard");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSections, setSelectedSections] = useState(sections.map((section) => section.key));
   const [reportResult, setReportResult] = useState<ComplianceReport | null>(null);
@@ -32,7 +43,10 @@ export function CompliancePage() {
     enabled: Boolean(productId),
   });
   const report = useMutation({
-    mutationFn: () => api.complianceReport({ product_id: productId, sections: selectedSections }),
+    mutationFn: () =>
+      reportType === "india"
+        ? api.indiaComplianceReport({ product_id: productId, sections: selectedSections })
+        : api.complianceReport({ product_id: productId, sections: selectedSections }),
     onSuccess: (result) => {
       setReportResult(result);
       addToast({ title: "Compliance report generated", variant: "success" });
@@ -56,6 +70,12 @@ export function CompliancePage() {
       current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
   };
+  const activeSections = reportType === "india" ? indiaSections : sections;
+  const changeReportType = (value: "standard" | "india") => {
+    setReportType(value);
+    setReportResult(null);
+    setSelectedSections((value === "india" ? indiaSections : sections).map((section) => section.key));
+  };
   const copyReport = async () => {
     if (!reportResult) return;
     await navigator.clipboard.writeText(reportResult.markdown);
@@ -78,7 +98,7 @@ export function CompliancePage() {
       <div>
         <h1 className="text-2xl font-semibold">Compliance Report Builder</h1>
         <p className="text-sm text-muted-foreground">
-          Generate evidence-based readiness reports for DPP, EPD, and sustainability review workflows.
+          Generate evidence-based readiness reports for DPP, EPD, India buyer evidence, and sustainability review workflows.
         </p>
       </div>
 
@@ -93,8 +113,15 @@ export function CompliancePage() {
             <h2 className="font-semibold">Report sections</h2>
             <p className="text-sm text-muted-foreground">Choose the evidence areas to include.</p>
           </div>
+          <Select
+            value={reportType}
+            onChange={(event) => changeReportType(event.target.value as "standard" | "india")}
+          >
+            <option value="standard">General DPP readiness</option>
+            <option value="india">India compliance readiness</option>
+          </Select>
           <div className="grid gap-2">
-            {sections.map((section) => {
+            {activeSections.map((section) => {
               const active = selectedSections.includes(section.key);
               return (
                 <label
@@ -120,7 +147,7 @@ export function CompliancePage() {
             disabled={!productId || !selectedSections.length || report.isPending}
             onClick={() => report.mutate()}
           >
-            <ClipboardCheck size={16} /> Generate compliance report
+            <ClipboardCheck size={16} /> Generate {reportType === "india" ? "India readiness" : "compliance"} report
           </Button>
         </div>
       </section>

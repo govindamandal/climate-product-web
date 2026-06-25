@@ -541,6 +541,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  indiaComplianceReport: (payload: { product_id: string; sections: string[] }) =>
+    request<ComplianceReport>("/compliance/india/reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   verifications: (query: { status?: string; productId?: string } = {}) => {
     const params = new URLSearchParams();
     if (query.status) params.set("status", query.status);

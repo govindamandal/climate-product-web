@@ -22,6 +22,7 @@ export function permissionsFor(user: User | null | undefined) {
     canDeleteProducts: isTenantAdmin,
     canManageEnvironmentalRecords: isOrgAdmin || isOrgUser,
     canSharePassports: isTenantAdmin,
+    canReviewVerifications: isTenantAdmin,
   };
 }
 

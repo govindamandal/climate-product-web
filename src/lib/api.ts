@@ -268,6 +268,31 @@ export type ComplianceReport = {
   markdown: string;
   report_json: Record<string, unknown>;
 };
+export type ProductVerification = {
+  id: string;
+  organization_id: string;
+  product_id: string;
+  product_name: string;
+  product_category: string;
+  requested_by_user_id: string | null;
+  requested_by_email: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_by_email: string | null;
+  status: "submitted" | "approved" | "rejected";
+  verification_type: string;
+  scope: string;
+  evidence_summary: string;
+  requester_notes: string;
+  reviewer_notes: string;
+  submitted_at: string;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type ProductVerificationList = {
+  items: ProductVerification[];
+  total: number;
+};
 export type EmissionFactor = {
   id: string;
   organization_id: string | null;
@@ -514,6 +539,29 @@ export const api = {
   complianceReport: (payload: { product_id: string; sections: string[] }) =>
     request<ComplianceReport>("/compliance/reports", {
       method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  verifications: (query: { status?: string; productId?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set("status", query.status);
+    if (query.productId) params.set("product_id", query.productId);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<ProductVerificationList>(`/verifications${suffix}`);
+  },
+  createVerification: (payload: {
+    product_id: string;
+    verification_type?: string;
+    scope?: string;
+    evidence_summary?: string;
+    requester_notes?: string;
+  }) =>
+    request<ProductVerification>("/verifications", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  reviewVerification: (id: string, payload: { status: "approved" | "rejected"; reviewer_notes?: string }) =>
+    request<ProductVerification>(`/verifications/${id}/review`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   emissionFactors: (query: { search?: string; category?: string; stage?: string } = {}) => {

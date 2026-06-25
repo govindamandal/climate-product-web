@@ -21,6 +21,7 @@ const PlatformPage = lazy(() => import("@/features/platform/platform-page").then
 const AdvisorPage = lazy(() => import("@/features/ai/advisor-page").then((m) => ({ default: m.AdvisorPage })));
 const ReportsPage = lazy(() => import("@/features/reports/reports-page").then((m) => ({ default: m.ReportsPage })));
 const CompliancePage = lazy(() => import("@/features/compliance/compliance-page").then((m) => ({ default: m.CompliancePage })));
+const VerificationPage = lazy(() => import("@/features/verification/verification-page").then((m) => ({ default: m.VerificationPage })));
 const CertificatesPage = lazy(() => import("@/features/ai/certificates-page").then((m) => ({ default: m.CertificatesPage })));
 
 export const router = createBrowserRouter([
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
           { path: "advisor", element: <RoutePage><AdvisorPage /></RoutePage> },
           { path: "reports", element: <RoutePage><ReportsPage /></RoutePage> },
           { path: "compliance", element: <RoutePage><CompliancePage /></RoutePage> },
+          { path: "verification", element: <RoutePage><VerificationPage /></RoutePage> },
           { path: "certificates", element: <RoutePage><CertificatesPage /></RoutePage> },
         ],
       },

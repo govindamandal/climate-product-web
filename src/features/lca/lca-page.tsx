@@ -71,21 +71,27 @@ export function LcaPage() {
       errorMessage: "Could not run LCA calculation",
     },
   });
+  const factors = useMemo(() => factorsQuery.data ?? [], [factorsQuery.data]);
 
   useEffect(() => {
     if (selectedProductQuery.data) {
       setSelectedProduct(selectedProductQuery.data);
       setDeclaredUnit(defaultDeclaredUnit(selectedProductQuery.data.category));
+      setRows(buildDefaultRows(selectedProductQuery.data, factors));
     }
-  }, [selectedProductQuery.data]);
+  }, [factors, selectedProductQuery.data]);
 
-  const factors = useMemo(() => factorsQuery.data ?? [], [factorsQuery.data]);
   const projected = useMemo(() => calculatePreview(rows, factors), [rows, factors]);
+  const invalidRows = rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => !row.activity_name.trim() || !hasFactor(row));
+  const canSave = Boolean(productId) && !calculation.isPending && invalidRows.length === 0;
   const selectProduct = (product: Product) => {
     setSelectedProduct(product);
     setResult(null);
     setSearchParams({ productId: product.id });
     setDeclaredUnit(defaultDeclaredUnit(product.category));
+    setRows(buildDefaultRows(product, factors));
   };
   const updateRow = (index: number, values: Partial<LcaInput>) => {
     setRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...values } : row));
@@ -170,7 +176,10 @@ export function LcaPage() {
                   step="0.001"
                   disabled={Boolean(row.emission_factor_id)}
                   value={row.emission_factor_kg_co2e ?? factorFor(row, factors)?.factor_kg_co2e ?? ""}
-                  onChange={(event) => updateRow(index, { emission_factor_kg_co2e: Number(event.target.value), emission_factor_id: undefined })}
+                  onChange={(event) => updateRow(index, {
+                    emission_factor_kg_co2e: event.target.value === "" ? undefined : Number(event.target.value),
+                    emission_factor_id: undefined,
+                  })}
                   placeholder="kg CO2e/unit"
                 />
                 <Select value={row.data_quality} onChange={(event) => updateRow(index, { data_quality: event.target.value as LcaInput["data_quality"] })}>
@@ -207,11 +216,16 @@ export function LcaPage() {
           </div>
           <Button
             className="mt-4 w-full"
-            disabled={!productId || calculation.isPending || rows.some((row) => !row.activity_name.trim())}
+            disabled={!canSave}
             onClick={() => calculation.mutate()}
           >
             <Calculator size={16} /> Save calculation
           </Button>
+          {invalidRows.length ? (
+            <p className="mt-3 text-sm text-destructive">
+              Add an activity name and emission factor for row {invalidRows[0].index + 1}.
+            </p>
+          ) : null}
         </div>
 
         {calculation.isPending ? (
@@ -272,6 +286,38 @@ function calculatePreview(rows: LcaInput[], factors: EmissionFactor[]) {
   }
   const total = Math.round(Object.values(stageTotals).reduce((sum, value) => sum + value, 0) * 1000) / 1000;
   return { stageTotals, total };
+}
+
+function buildDefaultRows(product: Product, factors: EmissionFactor[]): LcaInput[] {
+  const declaredUnit = defaultDeclaredUnit(product.category);
+  const latest = product.environmental_records[0];
+  const categoryFactor = factors.find((factor) =>
+    factor.lifecycle_stage === "A1-A3" && product.category.toLowerCase().includes(factor.category.toLowerCase()),
+  );
+  const transportFactor = factors.find((factor) =>
+    factor.lifecycle_stage === "A4" && factor.category.toLowerCase() === "transport",
+  );
+
+  return [
+    {
+      ...emptyRow(),
+      activity_name: "Manufacturing impact",
+      unit: categoryFactor?.unit ?? declaredUnit,
+      emission_factor_id: categoryFactor?.id,
+      emission_factor_kg_co2e: categoryFactor ? undefined : latest?.co2_kg ?? undefined,
+    },
+    {
+      ...emptyRow(),
+      stage: "A4",
+      activity_name: "Outbound transport",
+      unit: transportFactor?.unit ?? "t-km",
+      emission_factor_id: transportFactor?.id,
+    },
+  ];
+}
+
+function hasFactor(row: LcaInput) {
+  return Boolean(row.emission_factor_id) || row.emission_factor_kg_co2e !== undefined;
 }
 
 function defaultDeclaredUnit(category: string) {

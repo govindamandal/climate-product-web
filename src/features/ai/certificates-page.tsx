@@ -112,6 +112,8 @@ function CertificateReviewCard({
     certificate.emission_value === null ? "" : String(certificate.emission_value),
   );
   const [complianceInformation, setComplianceInformation] = useState(certificate.compliance_information ?? "");
+  const [documentType, setDocumentType] = useState(certificate.document_type ?? "sustainability_certificate");
+  const [reviewNotes, setReviewNotes] = useState(certificate.review_notes ?? "");
   const statusStyles: Record<CertificateExtraction["status"], string> = {
     needs_review: "border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200",
     approved: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200",
@@ -122,7 +124,10 @@ function CertificateReviewCard({
     expiry_date: expiryDate || null,
     emission_value: emissionValue ? Number(emissionValue) : null,
     compliance_information: complianceInformation,
+    document_type: documentType,
+    review_notes: reviewNotes,
   };
+  const confidencePercent = Math.round((certificate.extraction_confidence ?? 0) * 100);
 
   return (
     <article className="rounded-lg border border-border bg-card p-5">
@@ -133,10 +138,16 @@ function CertificateReviewCard({
             <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${statusStyles[certificate.status]}`}>
               {certificate.status.replace("_", " ")}
             </span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${confidenceClass(certificate.extraction_confidence)}`}>
+              {confidencePercent}% confidence
+            </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            <CertificateProductLabel productId={certificate.product_id} /> · Uploaded {new Date(certificate.created_at).toLocaleDateString()}
+            <CertificateProductLabel productId={certificate.product_id} /> · {certificate.document_type?.replaceAll("_", " ") ?? "unclassified"} · Uploaded {new Date(certificate.created_at).toLocaleDateString()}
           </p>
+          {certificate.reviewed_at ? (
+            <p className="mt-1 text-xs text-muted-foreground">Reviewed {new Date(certificate.reviewed_at).toLocaleString()}</p>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" disabled={pending} onClick={() => onSave({ ...correctedValues, status: "approved" })}>
@@ -160,6 +171,19 @@ function CertificateReviewCard({
           Emission value
           <Input type="number" min="0" step="0.01" value={emissionValue} onChange={(event) => setEmissionValue(event.target.value)} />
         </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Document type
+          <select
+            className="h-10 rounded-md border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+            value={documentType}
+            onChange={(event) => setDocumentType(event.target.value)}
+          >
+            <option value="epd">EPD</option>
+            <option value="chain_of_custody">Chain of custody</option>
+            <option value="green_building_certificate">Green building certificate</option>
+            <option value="sustainability_certificate">Sustainability certificate</option>
+          </select>
+        </label>
       </div>
       <label className="mt-4 grid gap-1 text-sm font-medium">
         Compliance information
@@ -169,6 +193,18 @@ function CertificateReviewCard({
           onChange={(event) => setComplianceInformation(event.target.value)}
         />
       </label>
+      <label className="mt-4 grid gap-1 text-sm font-medium">
+        Review notes
+        <textarea
+          className="min-h-20 rounded-md border border-border bg-card px-3 py-2 text-sm outline-none transition placeholder:text-muted-foreground focus:ring-2 focus:ring-primary"
+          value={reviewNotes}
+          onChange={(event) => setReviewNotes(event.target.value)}
+        />
+      </label>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <ExtractionPanel title="Field confidence" values={certificate.field_confidence_json} />
+        <ExtractionPanel title="Source evidence" values={certificate.evidence_json} />
+      </div>
       <div className="mt-4 flex justify-end">
         <Button
           variant="secondary"
@@ -180,6 +216,34 @@ function CertificateReviewCard({
       </div>
     </article>
   );
+}
+
+function ExtractionPanel({ title, values }: { title: string; values: Record<string, number | string | null> | null }) {
+  const entries = Object.entries(values ?? {}).filter(([, value]) => value !== null && value !== "");
+  return (
+    <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">
+      <div className="font-medium">{title}</div>
+      {entries.length ? (
+        <div className="mt-2 space-y-2">
+          {entries.map(([key, value]) => (
+            <div key={key}>
+              <div className="text-xs font-medium text-muted-foreground">{key.replaceAll("_", " ")}</div>
+              <div className="line-clamp-2 text-xs">{typeof value === "number" ? `${Math.round(value * 100)}%` : value}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 text-xs text-muted-foreground">No extracted evidence available.</div>
+      )}
+    </div>
+  );
+}
+
+function confidenceClass(confidence: number | null) {
+  const value = confidence ?? 0;
+  if (value >= 0.75) return "bg-primary/10 text-primary";
+  if (value >= 0.5) return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
+  return "bg-destructive/10 text-destructive";
 }
 
 function CertificateProductLabel({ productId }: { productId: string | null }) {

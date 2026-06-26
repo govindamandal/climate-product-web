@@ -281,6 +281,14 @@ export type CertificateExtraction = {
   emission_value: number | null;
   compliance_information: string | null;
   extracted_json: Record<string, unknown>;
+  document_type: string | null;
+  extraction_method: string | null;
+  extraction_confidence: number | null;
+  field_confidence_json: Record<string, number> | null;
+  evidence_json: Record<string, string | null> | null;
+  review_notes: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_at: string | null;
   status: "needs_review" | "approved" | "rejected";
   created_at: string;
 };

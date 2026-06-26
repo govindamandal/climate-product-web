@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
@@ -6,6 +6,7 @@ import {
   DatabaseZap,
   Filter,
   MailPlus,
+  ReceiptText,
   Search,
   Shield,
   ShieldCheck,
@@ -25,6 +26,7 @@ import { useAuthStore } from "@/stores/auth-store";
 type InviteRole = "org_admin" | "org_user";
 type DataRequestType = DataGovernanceRequest["request_type"];
 type DataRequestSubject = DataGovernanceRequest["subject_type"];
+type BillingCycle = "monthly" | "annual";
 
 export function OrganizationPage() {
   const queryClient = useQueryClient();
@@ -41,8 +43,12 @@ export function OrganizationPage() {
   const [requestReason, setRequestReason] = useState("");
   const [requestStatus, setRequestStatus] = useState("");
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
+  const [selectedPlan, setSelectedPlan] = useState("starter");
+  const [selectedCycle, setSelectedCycle] = useState<BillingCycle>("monthly");
   const teamQuery = useQuery({ queryKey: ["organization", "team"], queryFn: api.team });
   const permissions = permissionsFor(currentUser);
+  const billingPlansQuery = useQuery({ queryKey: ["billing", "plans"], queryFn: api.billingPlans });
+  const billingQuery = useQuery({ queryKey: ["billing", "current"], queryFn: api.currentBilling });
   const privacyQuery = useQuery({ queryKey: ["organization", "privacy-settings"], queryFn: api.privacySettings });
   const dataRequestsQuery = useQuery({
     queryKey: ["organization", "data-requests", requestStatus],
@@ -126,6 +132,26 @@ export function OrganizationPage() {
       errorMessage: "Could not update data governance request",
     },
   });
+  const billingMutation = useMutation({
+    mutationFn: api.updateCurrentBilling,
+    onSuccess: (summary) => {
+      setSelectedPlan(summary.subscription.plan_key);
+      setSelectedCycle(summary.subscription.billing_cycle);
+      queryClient.invalidateQueries({ queryKey: ["billing"] });
+      queryClient.invalidateQueries({ queryKey: ["organization", "audit-logs"] });
+    },
+    meta: {
+      successMessage: "Billing subscription updated",
+      errorMessage: "Could not update billing subscription",
+    },
+  });
+
+  useEffect(() => {
+    if (billingQuery.data) {
+      setSelectedPlan(billingQuery.data.subscription.plan_key);
+      setSelectedCycle(billingQuery.data.subscription.billing_cycle);
+    }
+  }, [billingQuery.data]);
 
   const onInvite = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -142,7 +168,14 @@ export function OrganizationPage() {
     });
   };
 
-  if (teamQuery.isLoading || privacyQuery.isLoading || dataRequestsQuery.isLoading || (permissions.canViewAuditTrail && auditQuery.isLoading)) {
+  if (
+    teamQuery.isLoading ||
+    billingPlansQuery.isLoading ||
+    billingQuery.isLoading ||
+    privacyQuery.isLoading ||
+    dataRequestsQuery.isLoading ||
+    (permissions.canViewAuditTrail && auditQuery.isLoading)
+  ) {
     return <LoadingState label="Loading organization" />;
   }
   if (!teamQuery.data) return <EmptyState title="Organization unavailable" />;
@@ -151,7 +184,10 @@ export function OrganizationPage() {
   const activeMembers = members.filter((member) => member.is_active).length;
   const admins = members.filter((member) => member.role === "org_admin").length;
   const privacy = privacyQuery.data;
+  const billing = billingQuery.data;
+  const plans = billingPlansQuery.data ?? [];
   const openRequests = dataRequestsQuery.data?.items.filter((item) => item.status === "open").length ?? 0;
+  const activePlan = plans.find((plan) => plan.key === selectedPlan) ?? billing?.current_plan;
 
   return (
     <div className="space-y-6">
@@ -169,6 +205,96 @@ export function OrganizationPage() {
         <KPIWidget label="Admins" value={admins.toLocaleString()} trend="Organization admins" icon={<Shield size={18} />} />
         <KPIWidget label="Privacy queue" value={openRequests.toLocaleString()} trend="Open requests" icon={<ShieldCheck size={18} />} />
       </div>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+          <div>
+            <h2 className="font-semibold">Billing And Subscription</h2>
+            <p className="text-sm text-muted-foreground">Manage plan limits, billing cycle, and current usage.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+            <ReceiptText size={14} /> {billing ? `${billing.subscription.plan_name} · ${formatStatus(billing.subscription.status)}` : "Pending"}
+          </div>
+        </div>
+        {billing ? (
+          <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-md border border-border p-4">
+                <div className="text-sm text-muted-foreground">Team seats</div>
+                <div className="mt-1 text-2xl font-semibold">{billing.usage.users}/{billing.usage.seats_included}</div>
+                <div className="mt-3 h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(billing.usage.seat_utilization_pct, 100)}%` }} />
+                </div>
+              </div>
+              <div className="rounded-md border border-border p-4">
+                <div className="text-sm text-muted-foreground">Products</div>
+                <div className="mt-1 text-2xl font-semibold">{billing.usage.products}/{billing.usage.products_included}</div>
+                <div className="mt-3 h-2 rounded-full bg-muted">
+                  <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(billing.usage.product_utilization_pct, 100)}%` }} />
+                </div>
+              </div>
+              <div className="rounded-md border border-border p-4 md:col-span-2">
+                <div className="text-sm text-muted-foreground">Current billing period</div>
+                <div className="mt-1 font-medium">Ends {new Date(billing.subscription.current_period_ends_at).toLocaleDateString()}</div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Provider: {billing.subscription.provider} · Cycle: {formatStatus(billing.subscription.billing_cycle)}
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              <div className="grid gap-3 md:grid-cols-[1fr_160px]">
+                <Select
+                  value={selectedPlan}
+                  disabled={!permissions.canManageBilling || billingMutation.isPending}
+                  onChange={(event) => setSelectedPlan(event.target.value)}
+                >
+                  {plans.map((plan) => (
+                    <option key={plan.key} value={plan.key}>{plan.name}</option>
+                  ))}
+                </Select>
+                <Select
+                  value={selectedCycle}
+                  disabled={!permissions.canManageBilling || billingMutation.isPending}
+                  onChange={(event) => setSelectedCycle(event.target.value as BillingCycle)}
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="annual">Annual</option>
+                </Select>
+              </div>
+              {activePlan ? (
+                <div className="rounded-md border border-border p-4 text-sm">
+                  <div className="font-medium">{activePlan.name}</div>
+                  <p className="mt-1 text-muted-foreground">{activePlan.description}</p>
+                  <div className="mt-3 font-medium">
+                    {activePlan.monthly_price_inr === 0 && activePlan.annual_price_inr === 0
+                      ? "Manual / free"
+                      : selectedCycle === "annual"
+                        ? `₹${activePlan.annual_price_inr.toLocaleString("en-IN")}/year`
+                        : `₹${activePlan.monthly_price_inr.toLocaleString("en-IN")}/month`}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {activePlan.features.map((feature) => (
+                      <span key={feature} className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{feature}</span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <Button
+                disabled={
+                  !permissions.canManageBilling ||
+                  billingMutation.isPending ||
+                  (selectedPlan === billing.subscription.plan_key && selectedCycle === billing.subscription.billing_cycle)
+                }
+                onClick={() => billingMutation.mutate({ plan_key: selectedPlan, billing_cycle: selectedCycle })}
+              >
+                Apply Plan
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <EmptyState title="Billing unavailable" />
+        )}
+      </section>
 
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">

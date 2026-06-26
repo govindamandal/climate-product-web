@@ -72,6 +72,10 @@ export type AuditLogQuery = {
 export type PlatformOrganization = Organization & {
   user_count: number;
   product_count: number;
+  billing_plan_key: string | null;
+  billing_plan_name: string | null;
+  billing_cycle: string | null;
+  billing_status: string | null;
 };
 export type PlatformAnalytics = {
   organization_count: number;
@@ -127,6 +131,54 @@ export type DataGovernanceRequest = {
 export type DataGovernanceRequestList = {
   items: DataGovernanceRequest[];
   total: number;
+};
+export type BillingPlan = {
+  key: string;
+  name: string;
+  description: string;
+  monthly_price_inr: number;
+  annual_price_inr: number;
+  seats_included: number;
+  products_included: number;
+  features: string[];
+};
+export type BillingSummary = {
+  subscription: {
+    id: string;
+    organization_id: string;
+    plan_key: string;
+    plan_name: string;
+    billing_cycle: "monthly" | "annual";
+    status: "trial" | "active" | "past_due" | "canceled";
+    seats_included: number;
+    products_included: number;
+    provider: string;
+    provider_customer_id: string | null;
+    provider_subscription_id: string | null;
+    trial_ends_at: string;
+    current_period_ends_at: string;
+    cancel_at_period_end: boolean;
+    updated_at: string;
+  };
+  current_plan: BillingPlan;
+  usage: {
+    users: number;
+    products: number;
+    seats_included: number;
+    products_included: number;
+    seat_utilization_pct: number;
+    product_utilization_pct: number;
+  };
+  invoices: Array<{
+    id: string;
+    invoice_number: string;
+    amount_inr: number;
+    status: string;
+    invoice_url: string | null;
+    issued_at: string;
+    due_at: string | null;
+    paid_at: string | null;
+  }>;
 };
 
 export type Product = {
@@ -463,6 +515,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   me: () => request<User>("/auth/me"),
+  billingPlans: () => request<BillingPlan[]>("/billing/plans"),
+  currentBilling: () => request<BillingSummary>("/billing/current"),
+  updateCurrentBilling: (payload: { plan_key: string; billing_cycle: "monthly" | "annual" }) =>
+    request<BillingSummary>("/billing/current", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   currentOrganization: () => request<Organization>("/organizations/current"),
   team: () => request<Team>("/organizations/team"),
   inviteUser: (payload: { email: string; full_name: string; role: "org_admin" | "org_user" }) =>

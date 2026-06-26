@@ -110,22 +110,26 @@ export function PlatformPage() {
       </section>
 
       <section className="overflow-x-auto rounded-lg border border-border bg-card">
-        <div className="min-w-[900px]">
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_120px_120px_180px] gap-x-4 bg-muted px-4 py-3 text-xs font-semibold uppercase text-muted-foreground">
+        <div className="min-w-[1100px]">
+          <div className="grid grid-cols-[1.5fr_1fr_1fr_120px_120px_180px_180px] gap-x-4 bg-muted px-4 py-3 text-xs font-semibold uppercase text-muted-foreground">
             <span>Organization</span>
             <span>Slug</span>
             <span>Country</span>
             <span>Users</span>
             <span>Products</span>
+            <span>Billing plan</span>
             <span>Subscription</span>
           </div>
           {(organizations.data?.items ?? []).map((organization) => (
-            <div key={organization.id} className="grid grid-cols-[1.5fr_1fr_1fr_120px_120px_180px] items-center gap-x-4 border-t border-border px-4 py-3 text-sm">
+            <div key={organization.id} className="grid grid-cols-[1.5fr_1fr_1fr_120px_120px_180px_180px] items-center gap-x-4 border-t border-border px-4 py-3 text-sm">
               <span className="truncate font-medium">{organization.name}</span>
               <span className="truncate text-muted-foreground">{organization.slug}</span>
               <span>{organization.country}</span>
               <span>{organization.user_count}</span>
               <span>{organization.product_count}</span>
+              <span className="truncate text-muted-foreground">
+                {organization.billing_plan_name ?? "Starter"} · {organization.billing_cycle ?? "monthly"}
+              </span>
               <Select
                 value={organization.subscription_status}
                 disabled={updateMutation.isPending}

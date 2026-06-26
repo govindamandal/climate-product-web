@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Clipboard, ClipboardCheck, Download, FileJson } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Clipboard, ClipboardCheck, Download, FileJson, History, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ const indiaSections = [
 
 export function CompliancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const productId = searchParams.get("productId") ?? "";
   const [reportType, setReportType] = useState<"standard" | "india">("standard");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -41,6 +42,10 @@ export function CompliancePage() {
     queryKey: ["products", productId],
     queryFn: () => api.product(productId),
     enabled: Boolean(productId),
+  });
+  const reportPacks = useQuery({
+    queryKey: ["professional-report-packs", productId, reportType],
+    queryFn: () => api.reportPacks({ productId: productId || undefined, reportType }),
   });
   const report = useMutation({
     mutationFn: () =>
@@ -53,6 +58,24 @@ export function CompliancePage() {
     },
     meta: {
       errorMessage: "Could not generate compliance report",
+    },
+  });
+  const savePack = useMutation({
+    mutationFn: () =>
+      api.createReportPack({
+        product_id: productId,
+        sections: selectedSections,
+        report_type: reportType,
+        title: reportResult
+          ? `${reportResult.product_name} ${reportType === "india" ? "India Buyer Pack" : "Compliance Pack"}`
+          : undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["professional-report-packs"] });
+      addToast({ title: "Professional report pack saved", variant: "success" });
+    },
+    meta: {
+      errorMessage: "Could not save professional report pack",
     },
   });
 
@@ -91,6 +114,20 @@ export function CompliancePage() {
     anchor.click();
     URL.revokeObjectURL(url);
     addToast({ title: "Compliance report downloaded", variant: "success" });
+  };
+  const copyPack = async (markdown: string) => {
+    await navigator.clipboard.writeText(markdown);
+    addToast({ title: "Professional report pack copied", variant: "success" });
+  };
+  const downloadPack = (title: string, markdown: string) => {
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    addToast({ title: "Professional report pack downloaded", variant: "success" });
   };
 
   return (
@@ -169,6 +206,13 @@ export function CompliancePage() {
               <Button variant="secondary" onClick={() => openJsonViewer(`${reportResult.product_name}-compliance.json`, reportResult.report_json)}>
                 <FileJson size={16} /> JSON
               </Button>
+              <Button
+                variant="secondary"
+                disabled={savePack.isPending}
+                onClick={() => savePack.mutate()}
+              >
+                <Save size={16} /> Save pack
+              </Button>
               <Button onClick={downloadReport}>
                 <Download size={16} /> Download
               </Button>
@@ -197,6 +241,62 @@ export function CompliancePage() {
           Select a product and choose evidence sections to build a compliance report.
         </EmptyState>
       )}
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold">
+              <History size={18} /> Professional report packs
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Saved buyer, tender, and compliance evidence packs for repeat sharing and review.
+            </p>
+          </div>
+          <div className="text-sm text-muted-foreground">{reportPacks.data?.total ?? 0} saved</div>
+        </div>
+        {reportPacks.isLoading ? (
+          <LoadingState label="Loading professional report packs" />
+        ) : reportPacks.data?.items.length ? (
+          <div className="grid gap-3">
+            {reportPacks.data.items.map((pack) => (
+              <article key={pack.id} className="rounded-md border border-border bg-background p-4">
+                <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold">{pack.title}</h3>
+                      <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                        {pack.report_type === "india" ? "India" : "DPP"} pack
+                      </span>
+                      <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                        {pack.readiness_score}/100
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">{pack.summary}</p>
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      {pack.product_name} - {new Date(pack.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={() => copyPack(pack.markdown)}>
+                      <Clipboard size={16} /> Copy
+                    </Button>
+                    <Button variant="secondary" onClick={() => openJsonViewer(`${pack.title}.json`, pack.report_json)}>
+                      <FileJson size={16} /> JSON
+                    </Button>
+                    <Button onClick={() => downloadPack(pack.title, pack.markdown)}>
+                      <Download size={16} /> Download
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title="No professional report packs saved">
+            Generate a report and save it as a professional evidence pack.
+          </EmptyState>
+        )}
+      </section>
     </div>
   );
 }

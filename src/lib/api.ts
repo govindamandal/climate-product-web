@@ -398,6 +398,27 @@ export type ComplianceReport = {
   markdown: string;
   report_json: Record<string, unknown>;
 };
+export type ProfessionalReportPack = {
+  id: string;
+  organization_id: string;
+  product_id: string;
+  product_name: string;
+  created_by_user_id: string | null;
+  report_type: "standard" | "india";
+  title: string;
+  readiness_score: number;
+  summary: string;
+  sections_json: string[];
+  checks_json: ComplianceReport["checks"];
+  report_json: Record<string, unknown>;
+  markdown: string;
+  status: string;
+  created_at: string;
+};
+export type ProfessionalReportPackList = {
+  items: ProfessionalReportPack[];
+  total: number;
+};
 export type ProductVerification = {
   id: string;
   organization_id: string;
@@ -709,6 +730,23 @@ export const api = {
     }),
   indiaComplianceReport: (payload: { product_id: string; sections: string[] }) =>
     request<ComplianceReport>("/compliance/india/reports", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  reportPacks: (query: { productId?: string; reportType?: "standard" | "india" } = {}) => {
+    const params = new URLSearchParams();
+    if (query.productId) params.set("product_id", query.productId);
+    if (query.reportType) params.set("report_type", query.reportType);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<ProfessionalReportPackList>(`/compliance/report-packs${suffix}`);
+  },
+  createReportPack: (payload: {
+    product_id: string;
+    sections: string[];
+    report_type: "standard" | "india";
+    title?: string;
+  }) =>
+    request<ProfessionalReportPack>("/compliance/report-packs", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

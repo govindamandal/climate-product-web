@@ -296,6 +296,7 @@ export type AuthTokens = {
 export type AdvisorResult = {
   product_id: string;
   provider: string;
+  safety: AISafetyMetadata;
   recommendations: Array<{
     title: string;
     category: string;
@@ -304,8 +305,19 @@ export type AdvisorResult = {
     next_step: string;
   }>;
 };
+export type AISafetyMetadata = {
+  status: string;
+  provider: string;
+  execution_mode: string;
+  policy_version: string;
+  data_policy: string;
+  validation_notes: string[];
+  disclaimers: string[];
+};
 export type ReportResult = {
   product_id: string;
+  provider: string;
+  safety: AISafetyMetadata;
   summary: string;
   markdown: string;
 };
@@ -315,6 +327,9 @@ export type AIJob = {
   product_id: string;
   job_type: "advisor" | "report";
   status: "pending" | "running" | "succeeded" | "failed";
+  provider: string | null;
+  safety_status: string | null;
+  safety_metadata_json: Record<string, unknown> | null;
   result_json: Record<string, unknown> | null;
   error_message: string | null;
 };

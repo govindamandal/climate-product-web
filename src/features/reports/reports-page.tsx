@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Clipboard, Download, FileText } from "lucide-react";
+import { Clipboard, Download, FileText, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -138,6 +138,14 @@ export function ReportsPage() {
             <div>
               <h2 className="font-semibold">{selectedProduct?.name ?? "Sustainability Report"}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{reportResult.summary}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
+                  <ShieldCheck size={13} /> {reportResult.safety.status}
+                </span>
+                <span className="rounded-full bg-muted px-2 py-1">{reportResult.provider}</span>
+                <span className="rounded-full bg-muted px-2 py-1">{reportResult.safety.execution_mode}</span>
+                <span className="rounded-full bg-muted px-2 py-1">{reportResult.safety.policy_version}</span>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={copyReport}>

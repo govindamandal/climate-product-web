@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Brain, Lightbulb } from "lucide-react";
+import { Brain, Lightbulb, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -113,16 +113,19 @@ export function AdvisorPage() {
       {isGenerating ? (
         <LoadingState label="Generating sustainability recommendations" />
       ) : advisorResult?.recommendations.length ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {advisorResult.recommendations.map((rec) => (
-            <article key={rec.title} className="rounded-lg border border-border bg-card p-5">
-              <div className="mb-3 flex items-center gap-2 text-primary"><Lightbulb size={18} /><span className="text-sm font-semibold">{rec.impact} impact</span></div>
-              <h2 className="font-semibold">{rec.title}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">{rec.rationale}</p>
-              <p className="mt-4 text-sm font-medium">{rec.next_step}</p>
-            </article>
-          ))}
-        </div>
+        <>
+          <AISafetyBanner provider={advisorResult.provider} safety={advisorResult.safety} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            {advisorResult.recommendations.map((rec) => (
+              <article key={rec.title} className="rounded-lg border border-border bg-card p-5">
+                <div className="mb-3 flex items-center gap-2 text-primary"><Lightbulb size={18} /><span className="text-sm font-semibold">{rec.impact} impact</span></div>
+                <h2 className="font-semibold">{rec.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{rec.rationale}</p>
+                <p className="mt-4 text-sm font-medium">{rec.next_step}</p>
+              </article>
+            ))}
+          </div>
+        </>
       ) : advisorResult ? (
         <EmptyState title="No recommendations found">
           This product is already within the local advisory thresholds.
@@ -131,5 +134,21 @@ export function AdvisorPage() {
         <EmptyState title="No analysis selected">Choose a product to generate recommendations.</EmptyState>
       )}
     </div>
+  );
+}
+
+function AISafetyBanner({ provider, safety }: { provider: string; safety: AdvisorResult["safety"] }) {
+  return (
+    <section className="rounded-lg border border-border bg-card p-4 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-2 font-medium text-primary">
+          <ShieldCheck size={16} /> AI safety validated
+        </span>
+        <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{provider}</span>
+        <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{safety.execution_mode}</span>
+        <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{safety.policy_version}</span>
+      </div>
+      <p className="mt-2 text-muted-foreground">{safety.data_policy}</p>
+    </section>
   );
 }

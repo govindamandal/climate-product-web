@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, ClipboardList, CreditCard, Factory, Plus, Search, Users } from "lucide-react";
+import { Activity, Building2, CreditCard, Factory, Plus, Search, Server, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,11 @@ export function PlatformPage() {
   const [auditSearch, setAuditSearch] = useState("");
   const [auditAction, setAuditAction] = useState("");
   const analytics = useQuery({ queryKey: ["platform", "analytics"], queryFn: api.platformAnalytics });
+  const operations = useQuery({
+    queryKey: ["platform", "operations-status"],
+    queryFn: api.operationsStatus,
+    refetchInterval: 60000,
+  });
   const organizations = useQuery({ queryKey: ["platform", "organizations"], queryFn: api.platformOrganizations });
   const users = useQuery({ queryKey: ["platform", "users"], queryFn: api.platformUsers });
   const auditLogs = useQuery({
@@ -69,11 +74,12 @@ export function PlatformPage() {
     createMutation.mutate();
   };
 
-  if (analytics.isLoading || organizations.isLoading || users.isLoading || auditLogs.isLoading) {
+  if (analytics.isLoading || operations.isLoading || organizations.isLoading || users.isLoading || auditLogs.isLoading) {
     return <LoadingState label="Loading platform console" />;
   }
   const data = analytics.data;
   if (!data) return <EmptyState title="Platform analytics unavailable" />;
+  const operationsStatus = operations.data;
 
   return (
     <div className="space-y-6">
@@ -89,8 +95,48 @@ export function PlatformPage() {
         <KPIWidget label="Active subscriptions" value={data.active_subscription_count.toLocaleString()} icon={<CreditCard size={18} />} />
         <KPIWidget label="Users" value={data.user_count.toLocaleString()} icon={<Users size={18} />} />
         <KPIWidget label="Products" value={data.product_count.toLocaleString()} icon={<Factory size={18} />} />
-        <KPIWidget label="Audit logs" value={data.audit_log_count.toLocaleString()} icon={<ClipboardList size={18} />} />
+        <KPIWidget label="System status" value={formatStatus(operationsStatus?.status ?? "unknown")} icon={<Activity size={18} />} />
       </div>
+
+      <section className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+          <div>
+            <h2 className="font-semibold">Operational Status</h2>
+            <p className="text-sm text-muted-foreground">Runtime health, dependency latency, and environment visibility.</p>
+          </div>
+          {operationsStatus ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+              <Server size={14} /> {operationsStatus.environment} · uptime {formatUptime(operationsStatus.uptime_seconds)}
+            </div>
+          ) : null}
+        </div>
+        {operations.isFetching ? <LoadingState label="Refreshing operations status" /> : null}
+        {operationsStatus ? (
+          <div className="grid gap-3 md:grid-cols-3">
+            {operationsStatus.checks.map((check) => (
+              <div key={check.name} className="rounded-md border border-border p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium capitalize">{check.name}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(check.status)}`}>
+                    {check.status}
+                  </span>
+                </div>
+                <div className="mt-2 text-muted-foreground">
+                  {check.latency_ms == null ? "Latency unavailable" : `${check.latency_ms} ms`}
+                </div>
+                {check.detail ? <div className="mt-2 line-clamp-2 text-xs text-muted-foreground">{check.detail}</div> : null}
+              </div>
+            ))}
+            <div className="rounded-md border border-border p-4 text-sm">
+              <div className="font-medium">Last checked</div>
+              <div className="mt-2 text-muted-foreground">{new Date(operationsStatus.generated_at).toLocaleString()}</div>
+              <div className="mt-2 text-xs text-muted-foreground">{operationsStatus.service}</div>
+            </div>
+          </div>
+        ) : (
+          <EmptyState title="Operations status unavailable" />
+        )}
+      </section>
 
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="mb-4">
@@ -208,4 +254,20 @@ export function PlatformPage() {
       </div>
     </div>
   );
+}
+
+function formatStatus(status: string) {
+  return status.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatUptime(seconds: number) {
+  if (seconds < 60) return `${Math.floor(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+function statusClass(status: string) {
+  if (status === "ok") return "bg-primary/10 text-primary";
+  if (status === "degraded") return "bg-amber-500/10 text-amber-600 dark:text-amber-300";
+  return "bg-destructive/10 text-destructive";
 }

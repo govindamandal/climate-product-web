@@ -84,6 +84,19 @@ export type PlatformAnalytics = {
   product_count: number;
   audit_log_count: number;
 };
+export type OperationsStatus = {
+  status: "ok" | "degraded" | "error";
+  service: string;
+  environment: string;
+  uptime_seconds: number;
+  generated_at: string;
+  checks: Array<{
+    name: string;
+    status: "ok" | "degraded" | "error";
+    latency_ms: number | null;
+    detail: string | null;
+  }>;
+};
 export type PlatformOrganizationCreated = {
   organization: PlatformOrganization;
   admin: User;
@@ -563,6 +576,7 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   platformAnalytics: () => request<PlatformAnalytics>("/platform/analytics"),
+  operationsStatus: () => request<OperationsStatus>("/operations/status"),
   platformOrganizations: () =>
     request<{ items: PlatformOrganization[]; total: number }>("/platform/organizations"),
   createPlatformOrganization: (payload: {

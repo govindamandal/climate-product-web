@@ -17,6 +17,7 @@ export function permissionsFor(user: User | null | undefined) {
     canInviteTeam: isTenantAdmin,
     canManageTeam: isTenantAdmin,
     canViewAuditTrail: isTenantAdmin,
+    canManagePrivacyControls: isTenantAdmin,
     canCreateProducts: isOrgAdmin || isOrgUser,
     canUpdateProducts: isOrgAdmin || isOrgUser,
     canDeleteProducts: isTenantAdmin,

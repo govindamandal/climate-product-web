@@ -86,6 +86,48 @@ export type PlatformOrganizationCreated = {
   temporary_password: string;
   created_at: string;
 };
+export type OrganizationPrivacySettings = {
+  id: string;
+  organization_id: string;
+  data_region: string;
+  retention_period_days: number;
+  allow_ai_processing: boolean;
+  allow_public_passport_sharing: boolean;
+  require_verification_for_exports: boolean;
+  data_processing_contact_email: string | null;
+  updated_at: string;
+};
+export type OrganizationPrivacySettingsUpdate = Partial<
+  Pick<
+    OrganizationPrivacySettings,
+    | "data_region"
+    | "retention_period_days"
+    | "allow_ai_processing"
+    | "allow_public_passport_sharing"
+    | "require_verification_for_exports"
+    | "data_processing_contact_email"
+  >
+>;
+export type DataGovernanceRequest = {
+  id: string;
+  organization_id: string;
+  requested_by_user_id: string | null;
+  requested_by_email: string | null;
+  reviewed_by_user_id: string | null;
+  reviewed_by_email: string | null;
+  request_type: "export" | "deletion" | "correction";
+  subject_type: "organization" | "product" | "user" | "certificate" | "report";
+  subject_id: string;
+  status: "open" | "completed" | "rejected";
+  reason: string;
+  resolution_notes: string;
+  created_at: string;
+  resolved_at: string | null;
+};
+export type DataGovernanceRequestList = {
+  items: DataGovernanceRequest[];
+  total: number;
+};
 
 export type Product = {
   id: string;
@@ -433,6 +475,34 @@ export const api = {
     const params = auditParams(query, 25);
     return request<AuditLogList>(`/organizations/audit-logs?${params.toString()}`);
   },
+  privacySettings: () => request<OrganizationPrivacySettings>("/organizations/privacy-settings"),
+  updatePrivacySettings: (payload: OrganizationPrivacySettingsUpdate) =>
+    request<OrganizationPrivacySettings>("/organizations/privacy-settings", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  dataRequests: (query: { status?: string; requestType?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (query.status) params.set("status", query.status);
+    if (query.requestType) params.set("request_type", query.requestType);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<DataGovernanceRequestList>(`/organizations/data-requests${suffix}`);
+  },
+  createDataRequest: (payload: {
+    request_type: DataGovernanceRequest["request_type"];
+    subject_type: DataGovernanceRequest["subject_type"];
+    subject_id?: string;
+    reason?: string;
+  }) =>
+    request<DataGovernanceRequest>("/organizations/data-requests", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  reviewDataRequest: (id: string, payload: { status: "completed" | "rejected"; resolution_notes?: string }) =>
+    request<DataGovernanceRequest>(`/organizations/data-requests/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   platformAnalytics: () => request<PlatformAnalytics>("/platform/analytics"),
   platformOrganizations: () =>
     request<{ items: PlatformOrganization[]; total: number }>("/platform/organizations"),

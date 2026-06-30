@@ -23,6 +23,7 @@ const ReportsPage = lazy(() => import("@/features/reports/reports-page").then((m
 const CompliancePage = lazy(() => import("@/features/compliance/compliance-page").then((m) => ({ default: m.CompliancePage })));
 const VerificationPage = lazy(() => import("@/features/verification/verification-page").then((m) => ({ default: m.VerificationPage })));
 const CertificatesPage = lazy(() => import("@/features/ai/certificates-page").then((m) => ({ default: m.CertificatesPage })));
+const IntegrationsPage = lazy(() => import("@/features/integrations/integrations-page").then((m) => ({ default: m.IntegrationsPage })));
 
 export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
@@ -58,6 +59,16 @@ export const router = createBrowserRouter([
           { path: "compliance", element: <RoutePage><CompliancePage /></RoutePage> },
           { path: "verification", element: <RoutePage><VerificationPage /></RoutePage> },
           { path: "certificates", element: <RoutePage><CertificatesPage /></RoutePage> },
+          {
+            path: "integrations",
+            element: (
+              <RoutePage>
+                <RoleGate allow={["org_admin", "super_admin"]}>
+                  <IntegrationsPage />
+                </RoleGate>
+              </RoutePage>
+            ),
+          },
         ],
       },
     ],

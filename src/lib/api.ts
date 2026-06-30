@@ -145,6 +145,48 @@ export type DataGovernanceRequestList = {
   items: DataGovernanceRequest[];
   total: number;
 };
+export type IntegrationConnection = {
+  id: string;
+  organization_id: string;
+  name: string;
+  provider: string;
+  connection_type: "webhook" | "erp" | "lca_database" | "storage";
+  status: "active" | "paused" | "error";
+  webhook_url: string | null;
+  config_json: Record<string, unknown>;
+  events_json: string[];
+  last_checked_at: string | null;
+  last_delivery_status: string | null;
+  created_by_user_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  has_secret: boolean;
+};
+export type IntegrationConnectionList = {
+  items: IntegrationConnection[];
+  total: number;
+};
+export type IntegrationEventDelivery = {
+  id: string;
+  organization_id: string;
+  connection_id: string | null;
+  event_type: string;
+  entity_type: string;
+  entity_id: string;
+  status: "queued" | "delivered" | "failed";
+  attempts: number;
+  request_payload_json: Record<string, unknown>;
+  response_status_code: number | null;
+  response_body: string;
+  error_message: string;
+  created_at: string;
+  delivered_at: string | null;
+};
+export type IntegrationEventDeliveryList = {
+  items: IntegrationEventDelivery[];
+  total: number;
+};
 export type BillingPlan = {
   key: string;
   name: string;
@@ -619,6 +661,50 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  integrations: (query: { connectionType?: IntegrationConnection["connection_type"] } = {}) => {
+    const params = new URLSearchParams();
+    if (query.connectionType) params.set("connection_type", query.connectionType);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<IntegrationConnectionList>(`/integrations/connections${suffix}`);
+  },
+  createIntegration: (payload: {
+    name: string;
+    provider: string;
+    connection_type: IntegrationConnection["connection_type"];
+    webhook_url?: string;
+    webhook_secret?: string;
+    events: string[];
+    config?: Record<string, unknown>;
+  }) =>
+    request<IntegrationConnection>("/integrations/connections", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateIntegration: (id: string, payload: Partial<{
+    name: string;
+    provider: string;
+    status: IntegrationConnection["status"];
+    webhook_url: string;
+    webhook_secret: string;
+    events: string[];
+    config: Record<string, unknown>;
+    is_active: boolean;
+  }>) =>
+    request<IntegrationConnection>(`/integrations/connections/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteIntegration: (id: string) =>
+    request<void>(`/integrations/connections/${id}`, { method: "DELETE" }),
+  testIntegration: (id: string) =>
+    request<IntegrationEventDelivery>(`/integrations/connections/${id}/test`, { method: "POST" }),
+  integrationDeliveries: (query: { connectionId?: string; status?: IntegrationEventDelivery["status"] } = {}) => {
+    const params = new URLSearchParams();
+    if (query.connectionId) params.set("connection_id", query.connectionId);
+    if (query.status) params.set("status", query.status);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<IntegrationEventDeliveryList>(`/integrations/deliveries${suffix}`);
+  },
   platformAnalytics: () => request<PlatformAnalytics>("/platform/analytics"),
   operationsStatus: () => request<OperationsStatus>("/operations/status"),
   platformOrganizations: () =>

@@ -18,6 +18,7 @@ export function VerificationPage() {
   const [evidenceSummary, setEvidenceSummary] = useState("");
   const [requesterNotes, setRequesterNotes] = useState("");
   const [reviewerNotes, setReviewerNotes] = useState<Record<string, string>>({});
+  const [verificationStatements, setVerificationStatements] = useState<Record<string, string>>({});
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const permissions = permissionsFor(user);
@@ -50,6 +51,7 @@ export function VerificationPage() {
       api.reviewVerification(id, {
         status: nextStatus,
         reviewer_notes: reviewerNotes[id] ?? "",
+        verification_statement: verificationStatements[id] ?? "",
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["verifications"] });
@@ -121,8 +123,12 @@ export function VerificationPage() {
                 canReview={permissions.canReviewVerifications}
                 pending={reviewMutation.isPending}
                 reviewerNote={reviewerNotes[item.id] ?? ""}
+                verificationStatement={verificationStatements[item.id] ?? ""}
                 onReviewerNoteChange={(value) =>
                   setReviewerNotes((current) => ({ ...current, [item.id]: value }))
+                }
+                onVerificationStatementChange={(value) =>
+                  setVerificationStatements((current) => ({ ...current, [item.id]: value }))
                 }
                 onReview={(nextStatus) => reviewMutation.mutate({ id: item.id, nextStatus })}
               />
@@ -141,14 +147,18 @@ function VerificationCard({
   canReview,
   pending,
   reviewerNote,
+  verificationStatement,
   onReviewerNoteChange,
+  onVerificationStatementChange,
   onReview,
 }: {
   item: ProductVerification;
   canReview: boolean;
   pending: boolean;
   reviewerNote: string;
+  verificationStatement: string;
   onReviewerNoteChange: (value: string) => void;
+  onVerificationStatementChange: (value: string) => void;
   onReview: (status: "approved" | "rejected") => void;
 }) {
   const open = item.status === "submitted";
@@ -175,18 +185,34 @@ function VerificationCard({
         <EvidenceBlock label="Evidence summary" value={item.evidence_summary || "No summary supplied."} />
         <EvidenceBlock label="Requester notes" value={item.requester_notes || "No notes supplied."} />
       </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <EvidenceBlock label="Evidence lock" value={item.locked_at ? new Date(item.locked_at).toLocaleString() : "Not locked"} />
+        <EvidenceBlock label="Evidence hash" value={item.evidence_hash ? `${item.evidence_hash.slice(0, 16)}...` : "Unavailable"} />
+        <EvidenceBlock label="Approval version" value={`v${item.approval_version}`} />
+      </div>
       {item.reviewer_notes ? (
         <div className="mt-3 rounded-md border border-border bg-card p-3 text-sm">
           <div className="text-xs uppercase text-muted-foreground">Reviewer notes</div>
           <p className="mt-1">{item.reviewer_notes}</p>
         </div>
       ) : null}
+      {item.verification_statement ? (
+        <div className="mt-3 rounded-md border border-border bg-card p-3 text-sm">
+          <div className="text-xs uppercase text-muted-foreground">Verification statement</div>
+          <p className="mt-1">{item.verification_statement}</p>
+        </div>
+      ) : null}
       {canReview && open ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
           <Input
             placeholder="Reviewer notes"
             value={reviewerNote}
             onChange={(event) => onReviewerNoteChange(event.target.value)}
+          />
+          <Input
+            placeholder="Verification statement"
+            value={verificationStatement}
+            onChange={(event) => onVerificationStatementChange(event.target.value)}
           />
           <Button variant="secondary" disabled={pending} onClick={() => onReview("approved")}>
             <CheckCircle2 size={16} /> Approve

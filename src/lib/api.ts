@@ -475,9 +475,14 @@ export type ProductVerification = {
   verification_type: string;
   scope: string;
   evidence_summary: string;
+  evidence_snapshot_json: Record<string, unknown>;
+  evidence_hash: string;
+  approval_version: number;
+  verification_statement: string;
   requester_notes: string;
   reviewer_notes: string;
   submitted_at: string;
+  locked_at: string | null;
   reviewed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -856,7 +861,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  reviewVerification: (id: string, payload: { status: "approved" | "rejected"; reviewer_notes?: string }) =>
+  reviewVerification: (id: string, payload: { status: "approved" | "rejected"; reviewer_notes?: string; verification_statement?: string }) =>
     request<ProductVerification>(`/verifications/${id}/review`, {
       method: "PATCH",
       body: JSON.stringify(payload),

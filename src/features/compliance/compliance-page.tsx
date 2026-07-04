@@ -8,7 +8,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { Select } from "@/components/ui/select";
 import { ProductSearchPicker } from "@/features/products/product-search-picker";
 import { ComplianceReport, Product, api } from "@/lib/api";
-import { openJsonViewer } from "@/lib/exports";
+import { openJsonViewer, openProfessionalReportPdf } from "@/lib/exports";
 import { cn } from "@/lib/utils";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -213,8 +213,11 @@ export function CompliancePage() {
               >
                 <Save size={16} /> Save pack
               </Button>
+              <Button variant="secondary" onClick={() => openProfessionalReportPdf(reportResult)}>
+                <Download size={16} /> PDF
+              </Button>
               <Button onClick={downloadReport}>
-                <Download size={16} /> Download
+                <Download size={16} /> Markdown
               </Button>
             </div>
           </div>
@@ -283,8 +286,11 @@ export function CompliancePage() {
                     <Button variant="secondary" onClick={() => openJsonViewer(`${pack.title}.json`, pack.report_json)}>
                       <FileJson size={16} /> JSON
                     </Button>
+                    <Button variant="secondary" onClick={() => openProfessionalReportPdf(pack)}>
+                      <Download size={16} /> PDF
+                    </Button>
                     <Button onClick={() => downloadPack(pack.title, pack.markdown)}>
-                      <Download size={16} /> Download
+                      <Download size={16} /> Markdown
                     </Button>
                   </div>
                 </div>

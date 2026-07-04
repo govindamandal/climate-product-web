@@ -1,4 +1,4 @@
-import type { Product } from "@/lib/api";
+import type { ComplianceReport, Product, ProfessionalReportPack } from "@/lib/api";
 
 type PassportPayload = {
   schema: string;
@@ -198,6 +198,41 @@ export function openProductPassportPdf(product: Product) {
   window.open(url, "_blank");
 }
 
+export function openProfessionalReportPdf(report: ComplianceReport | ProfessionalReportPack) {
+  const reportJson = report.report_json;
+  const product = reportJson.product as Record<string, unknown> | undefined;
+  const methodology = reportJson.methodology as { standard?: string; assumptions?: string[]; limitations?: string[] } | undefined;
+  const verification = reportJson.verification as {
+    status?: string;
+    evidence_hash?: string | null;
+    approval_version?: number | null;
+    verification_statement?: string;
+    reviewed_at?: string | null;
+    locked_at?: string | null;
+  } | undefined;
+  const checks = (reportJson.checks as Array<{ label: string; status: string; evidence: string; recommendation: string }> | undefined) ?? [];
+  const title = "title" in report ? report.title : `${report.product_name} Compliance Report`;
+  const pdf = createProfessionalReportPdf({
+    title,
+    productName: report.product_name,
+    productCategory: String(product?.category ?? "Product"),
+    manufacturer: String(product?.manufacturer ?? "Not specified"),
+    readinessScore: report.readiness_score,
+    summary: report.summary,
+    methodologyStandard: methodology?.standard ?? "Readiness screening",
+    assumptions: methodology?.assumptions ?? [],
+    limitations: methodology?.limitations ?? [],
+    verificationStatus: verification?.status ?? "not_verified",
+    evidenceHash: verification?.evidence_hash ?? "",
+    approvalVersion: verification?.approval_version ? `v${verification.approval_version}` : "Not approved",
+    verificationStatement: verification?.verification_statement ?? "",
+    checks,
+  });
+  const blob = new Blob([pdf], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
 export function printProductPassport(product: Product) {
   const payload = buildPassportPayload(product);
   const latest = payload.environmental_metrics;
@@ -368,6 +403,93 @@ type PassportPdfDocument = {
   certifications: string;
 };
 
+type ProfessionalReportPdfDocument = {
+  title: string;
+  productName: string;
+  productCategory: string;
+  manufacturer: string;
+  readinessScore: number;
+  summary: string;
+  methodologyStandard: string;
+  assumptions: string[];
+  limitations: string[];
+  verificationStatus: string;
+  evidenceHash: string;
+  approvalVersion: string;
+  verificationStatement: string;
+  checks: Array<{ label: string; status: string; evidence: string; recommendation: string }>;
+};
+
+function createProfessionalReportPdf(document: ProfessionalReportPdfDocument) {
+  const commands: string[] = [];
+  const page = { width: 612, height: 792, margin: 54 };
+  const green = "0.09 0.48 0.41";
+  const text = "0.07 0.15 0.13";
+  const muted = "0.39 0.45 0.44";
+  const border = "0.84 0.87 0.86";
+  const fill = "0.95 0.97 0.96";
+
+  rect(commands, 0, 0, page.width, page.height, "1 1 1", true);
+  let y = 724;
+  textLine(commands, "Professional Sustainability Evidence Report", page.margin, y, 10, muted);
+  y -= 34;
+  y = textBlock(commands, document.title, page.margin, y, 21, 26, text, 34, "F2");
+  y -= 16;
+  y = textBlock(commands, document.summary, page.margin, y, 10, 14, muted, 88);
+  y -= 16;
+  rect(commands, page.margin, y, 504, 2, green, true);
+
+  rect(commands, 464, 674, 94, 72, green, false);
+  textLine(commands, "Readiness", 486, 722, 10, muted);
+  textLine(commands, String(document.readinessScore), 494, 696, 26, text, "F2");
+  textLine(commands, "/ 100", 500, 681, 10, muted);
+
+  y -= 42;
+  textLine(commands, "Product And Verification", page.margin, y, 14, text, "F2");
+  y -= 18;
+  const metadata: Array<[string, string]> = [
+    ["Product", document.productName],
+    ["Category", document.productCategory],
+    ["Manufacturer", document.manufacturer],
+    ["Verification", document.verificationStatus],
+    ["Approval Version", document.approvalVersion],
+    ["Evidence Hash", document.evidenceHash ? `${document.evidenceHash.slice(0, 24)}...` : "Not attached"],
+  ];
+  metadata.forEach(([label, value], index) => {
+    const x = page.margin + (index % 2) * 258;
+    const boxY = y - Math.floor(index / 2) * 50;
+    card(commands, x, boxY - 34, 238, 38, border, "1 1 1");
+    textLine(commands, label.toUpperCase(), x + 12, boxY - 8, 7, muted);
+    textBlock(commands, value, x + 12, boxY - 24, 10, 12, text, 34, "F2");
+  });
+
+  y -= Math.ceil(metadata.length / 2) * 50 + 18;
+  y = pdfSection(commands, "Verification Statement", document.verificationStatement || "No approved verification statement is attached.", page.margin, y, 504);
+  y -= 8;
+  y = pdfSection(commands, "Methodology", `${document.methodologyStandard}\nAssumptions: ${document.assumptions.join("; ") || "Not specified"}\nLimitations: ${document.limitations.join("; ") || "Not specified"}`, page.margin, y, 504);
+  y -= 8;
+  textLine(commands, "Readiness Checks", page.margin, y, 14, text, "F2");
+  y -= 18;
+  document.checks.slice(0, 5).forEach((check) => {
+    const boxHeight = 58;
+    rect(commands, page.margin, y - boxHeight, 504, boxHeight, fill, true);
+    rect(commands, page.margin, y - boxHeight, 504, boxHeight, border, false);
+    textLine(commands, `${check.label} - ${check.status.replace("_", " ").toUpperCase()}`, page.margin + 12, y - 15, 10, text, "F2");
+    textBlock(commands, check.evidence, page.margin + 12, y - 31, 8, 10, muted, 94);
+    y -= boxHeight + 8;
+  });
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    `<< /Length ${commands.join("\n").length} >>\nstream\n${commands.join("\n")}\nendstream`,
+  ];
+  return assemblePdf(objects);
+}
+
 function createPassportPdf(document: PassportPdfDocument) {
   const commands: string[] = [];
   const page = { width: 612, height: 792, margin: 54 };
@@ -433,6 +555,10 @@ function createPassportPdf(document: PassportPdfDocument) {
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     `<< /Length ${commands.join("\n").length} >>\nstream\n${commands.join("\n")}\nendstream`,
   ];
+  return assemblePdf(objects);
+}
+
+function assemblePdf(objects: string[]) {
   let body = "%PDF-1.4\n";
   const offsets = [0];
   objects.forEach((object, index) => {

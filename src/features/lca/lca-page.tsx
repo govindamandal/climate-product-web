@@ -19,6 +19,7 @@ const emptyRow = (): LcaInput => ({
   activity_name: "",
   quantity: 1,
   unit: "t",
+  conversion_factor: 1,
   data_quality: "estimated",
 });
 
@@ -28,6 +29,9 @@ export function LcaPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [declaredUnit, setDeclaredUnit] = useState("1 unit");
   const [boundary, setBoundary] = useState("cradle-to-gate");
+  const [allocationMethod, setAllocationMethod] = useState("mass allocation");
+  const [dataPeriod, setDataPeriod] = useState("");
+  const [pcrReference, setPcrReference] = useState("");
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<LcaInput[]>([
     { ...emptyRow(), activity_name: "Manufacturing impact" },
@@ -54,12 +58,18 @@ export function LcaPage() {
     mutationFn: () => api.createLcaCalculation(productId, {
       declared_unit: declaredUnit,
       boundary,
+      method_version: "lca-engine.v2",
+      allocation_method: allocationMethod,
+      data_period: dataPeriod,
+      pcr_reference: pcrReference,
       notes,
       inputs: rows.map((row) => ({
         ...row,
         activity_name: row.activity_name.trim(),
         quantity: Number(row.quantity),
+        conversion_factor: Number(row.conversion_factor ?? 1),
         emission_factor_kg_co2e: row.emission_factor_kg_co2e === undefined ? undefined : Number(row.emission_factor_kg_co2e),
+        uncertainty_pct: row.uncertainty_pct === undefined ? undefined : Number(row.uncertainty_pct),
       })),
     }),
     onSuccess: (created) => {
@@ -136,6 +146,23 @@ export function LcaPage() {
             </Select>
           </label>
           <label className="text-sm font-medium">
+            Allocation method
+            <Select className="mt-1" value={allocationMethod} onChange={(event) => setAllocationMethod(event.target.value)}>
+              <option value="mass allocation">Mass allocation</option>
+              <option value="economic allocation">Economic allocation</option>
+              <option value="physical allocation">Physical allocation</option>
+              <option value="no allocation">No allocation</option>
+            </Select>
+          </label>
+          <label className="text-sm font-medium">
+            Data period
+            <Input className="mt-1" value={dataPeriod} onChange={(event) => setDataPeriod(event.target.value)} placeholder="FY2025-26" />
+          </label>
+          <label className="text-sm font-medium">
+            PCR reference
+            <Input className="mt-1" value={pcrReference} onChange={(event) => setPcrReference(event.target.value)} placeholder="EN 15804 / category PCR" />
+          </label>
+          <label className="text-sm font-medium">
             Notes
             <Input className="mt-1" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Screening assumptions" />
           </label>
@@ -157,7 +184,7 @@ export function LcaPage() {
         ) : (
           <div className="space-y-3">
             {rows.map((row, index) => (
-              <div key={index} className="grid gap-3 rounded-md border border-border bg-background p-3 xl:grid-cols-[110px_1.3fr_1fr_90px_90px_120px_120px_auto]">
+              <div key={index} className="grid gap-3 rounded-md border border-border bg-background p-3 xl:grid-cols-[110px_1.2fr_1fr_90px_90px_110px_120px_110px_120px_auto]">
                 <Select value={row.stage} onChange={(event) => updateRow(index, { stage: event.target.value })}>
                   {stages.map((stage) => <option key={stage} value={stage}>{stage}</option>)}
                 </Select>
@@ -170,6 +197,14 @@ export function LcaPage() {
                 </Select>
                 <Input type="number" min="0" step="0.001" value={row.quantity} onChange={(event) => updateRow(index, { quantity: Number(event.target.value) })} />
                 <Input value={row.unit} onChange={(event) => updateRow(index, { unit: event.target.value })} />
+                <Input
+                  type="number"
+                  min="0.000001"
+                  step="0.001"
+                  value={row.conversion_factor ?? 1}
+                  onChange={(event) => updateRow(index, { conversion_factor: Number(event.target.value) })}
+                  title="Conversion factor"
+                />
                 <Input
                   type="number"
                   min="0"
@@ -187,6 +222,15 @@ export function LcaPage() {
                   <option value="hybrid">Hybrid</option>
                   <option value="estimated">Estimated</option>
                 </Select>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={row.uncertainty_pct ?? ""}
+                  onChange={(event) => updateRow(index, { uncertainty_pct: event.target.value === "" ? undefined : Number(event.target.value) })}
+                  placeholder="Unc. %"
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -246,6 +290,8 @@ export function LcaPage() {
 
 function CalculationResult({ calculation }: { calculation: LcaCalculation }) {
   const interpretation = String(calculation.result_json.interpretation ?? "");
+  const uncertainty = calculation.result_json.uncertainty as { low_kg_co2e?: number; high_kg_co2e?: number; absolute_kg_co2e?: number } | undefined;
+  const methodology = calculation.result_json.methodology as { allocation_method?: string; data_period?: string; pcr_reference?: string } | undefined;
   return (
     <section className="rounded-lg border border-border bg-card p-5">
       <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
@@ -253,6 +299,11 @@ function CalculationResult({ calculation }: { calculation: LcaCalculation }) {
           <div className="text-sm text-muted-foreground">Saved calculation</div>
           <h2 className="text-3xl font-semibold">{calculation.total_kg_co2e.toLocaleString()} kg CO2e</h2>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{interpretation}</p>
+          {uncertainty ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Uncertainty range: {Number(uncertainty.low_kg_co2e ?? 0).toLocaleString()} - {Number(uncertainty.high_kg_co2e ?? 0).toLocaleString()} kg CO2e
+            </p>
+          ) : null}
           <span className={cn("mt-3 inline-flex rounded-full px-2 py-1 text-xs font-medium", confidenceClass(calculation.confidence))}>
             {calculation.confidence} confidence
           </span>
@@ -262,6 +313,16 @@ function CalculationResult({ calculation }: { calculation: LcaCalculation }) {
         </Button>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
+        {methodology ? (
+          <div className="rounded-md border border-border bg-background p-3 md:col-span-3">
+            <div className="text-xs text-muted-foreground">Methodology</div>
+            <div className="mt-1 text-sm">
+              {methodology.allocation_method || "Allocation not specified"}
+              {methodology.data_period ? ` - ${methodology.data_period}` : ""}
+              {methodology.pcr_reference ? ` - ${methodology.pcr_reference}` : ""}
+            </div>
+          </div>
+        ) : null}
         {Object.entries(calculation.stage_totals_json).map(([stage, value]) => (
           <div key={stage} className="rounded-md border border-border bg-background p-3">
             <div className="text-xs text-muted-foreground">{stage}</div>
@@ -282,7 +343,8 @@ function calculatePreview(rows: LcaInput[], factors: EmissionFactor[]) {
   for (const row of rows) {
     const factor = factorFor(row, factors);
     const factorValue = factor?.factor_kg_co2e ?? row.emission_factor_kg_co2e ?? 0;
-    stageTotals[row.stage] = Math.round((stageTotals[row.stage] + Number(row.quantity || 0) * factorValue) * 1000) / 1000;
+    const normalizedQuantity = Number(row.quantity || 0) * Number(row.conversion_factor ?? 1);
+    stageTotals[row.stage] = Math.round((stageTotals[row.stage] + normalizedQuantity * factorValue) * 1000) / 1000;
   }
   const total = Math.round(Object.values(stageTotals).reduce((sum, value) => sum + value, 0) * 1000) / 1000;
   return { stageTotals, total };

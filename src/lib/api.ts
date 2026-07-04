@@ -504,9 +504,11 @@ export type LcaInput = {
   activity_name: string;
   quantity: number;
   unit: string;
+  conversion_factor?: number;
   emission_factor_id?: string;
   emission_factor_kg_co2e?: number;
   data_quality: "measured" | "hybrid" | "estimated";
+  uncertainty_pct?: number;
   notes?: string;
 };
 export type LcaCalculation = {
@@ -867,7 +869,16 @@ export const api = {
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request<EmissionFactor[]>(`/lca/emission-factors${suffix}`);
   },
-  createLcaCalculation: (productId: string, payload: { declared_unit: string; boundary: string; notes?: string; inputs: LcaInput[] }) =>
+  createLcaCalculation: (productId: string, payload: {
+    declared_unit: string;
+    boundary: string;
+    method_version?: string;
+    allocation_method?: string;
+    data_period?: string;
+    pcr_reference?: string;
+    notes?: string;
+    inputs: LcaInput[];
+  }) =>
     request<LcaCalculation>(`/lca/products/${productId}/calculations`, {
       method: "POST",
       body: JSON.stringify(payload),

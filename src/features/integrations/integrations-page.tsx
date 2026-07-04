@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, PauseCircle, PlugZap, Send, Trash2 } from "lucide-react";
+import { CheckCircle2, PauseCircle, PlugZap, RotateCw, Send, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -87,6 +87,17 @@ export function IntegrationsPage() {
     meta: {
       successMessage: "Integration test delivery recorded",
       errorMessage: "Could not test integration",
+    },
+  });
+  const attemptMutation = useMutation({
+    mutationFn: (id: string) => api.attemptIntegrationDelivery(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      queryClient.invalidateQueries({ queryKey: ["integration-deliveries"] });
+    },
+    meta: {
+      successMessage: "Delivery sent",
+      errorMessage: "Could not send delivery",
     },
   });
 
@@ -193,7 +204,7 @@ export function IntegrationsPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold">Delivery log</h2>
-            <p className="text-sm text-muted-foreground">Recent queued and delivered integration events.</p>
+            <p className="text-sm text-muted-foreground">Recent signed webhook deliveries and retry outcomes.</p>
           </div>
           <div className="text-sm text-muted-foreground">{deliveries.data?.total ?? 0} events</div>
         </div>
@@ -208,12 +219,19 @@ export function IntegrationsPage() {
                   <th className="py-2 pr-4">Entity</th>
                   <th className="py-2 pr-4">Status</th>
                   <th className="py-2 pr-4">Attempts</th>
+                  <th className="py-2 pr-4">Response</th>
                   <th className="py-2 pr-4">Created</th>
+                  <th className="py-2 pr-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {deliveries.data.items.map((delivery) => (
-                  <DeliveryRow key={delivery.id} delivery={delivery} />
+                  <DeliveryRow
+                    key={delivery.id}
+                    delivery={delivery}
+                    pending={attemptMutation.isPending}
+                    onAttempt={() => attemptMutation.mutate(delivery.id)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -285,10 +303,24 @@ function ConnectionCard({
   );
 }
 
-function DeliveryRow({ delivery }: { delivery: IntegrationEventDelivery }) {
+function DeliveryRow({
+  delivery,
+  pending,
+  onAttempt,
+}: {
+  delivery: IntegrationEventDelivery;
+  pending: boolean;
+  onAttempt: () => void;
+}) {
+  const canAttempt = delivery.status !== "delivered";
   return (
     <tr className="border-b border-border last:border-0">
-      <td className="py-3 pr-4 font-medium">{delivery.event_type}</td>
+      <td className="py-3 pr-4">
+        <div className="font-medium">{delivery.event_type}</div>
+        {delivery.delivery_url ? (
+          <div className="max-w-[280px] truncate text-xs text-muted-foreground">{delivery.delivery_url}</div>
+        ) : null}
+      </td>
       <td className="py-3 pr-4 text-muted-foreground">
         {delivery.entity_type} - {delivery.entity_id || "n/a"}
       </td>
@@ -298,7 +330,29 @@ function DeliveryRow({ delivery }: { delivery: IntegrationEventDelivery }) {
         </span>
       </td>
       <td className="py-3 pr-4 text-muted-foreground">{delivery.attempts}</td>
-      <td className="py-3 pr-4 text-muted-foreground">{new Date(delivery.created_at).toLocaleString()}</td>
+      <td className="py-3 pr-4 text-muted-foreground">
+        <div>{delivery.response_status_code ?? "Not sent"}</div>
+        {delivery.next_attempt_at ? (
+          <div className="text-xs">Retry {new Date(delivery.next_attempt_at).toLocaleString()}</div>
+        ) : delivery.error_message ? (
+          <div className="max-w-[260px] truncate text-xs text-destructive">{delivery.error_message}</div>
+        ) : null}
+      </td>
+      <td className="py-3 pr-4 text-muted-foreground">
+        <div>{new Date(delivery.created_at).toLocaleString()}</div>
+        {delivery.last_attempted_at ? (
+          <div className="text-xs">Tried {new Date(delivery.last_attempted_at).toLocaleString()}</div>
+        ) : null}
+      </td>
+      <td className="py-3 pr-4 text-right">
+        {canAttempt ? (
+          <Button variant="secondary" size="sm" disabled={pending} onClick={onAttempt}>
+            <RotateCw size={14} /> {delivery.attempts > 0 ? "Retry" : "Send"}
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Done</span>
+        )}
+      </td>
     </tr>
   );
 }

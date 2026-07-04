@@ -174,13 +174,17 @@ export type IntegrationEventDelivery = {
   event_type: string;
   entity_type: string;
   entity_id: string;
-  status: "queued" | "delivered" | "failed";
+  status: "queued" | "delivered" | "failed" | "retry_scheduled";
   attempts: number;
+  delivery_url: string | null;
+  signature_header: string | null;
   request_payload_json: Record<string, unknown>;
   response_status_code: number | null;
   response_body: string;
   error_message: string;
   created_at: string;
+  last_attempted_at: string | null;
+  next_attempt_at: string | null;
   delivered_at: string | null;
 };
 export type IntegrationEventDeliveryList = {
@@ -705,6 +709,8 @@ export const api = {
     request<void>(`/integrations/connections/${id}`, { method: "DELETE" }),
   testIntegration: (id: string) =>
     request<IntegrationEventDelivery>(`/integrations/connections/${id}/test`, { method: "POST" }),
+  attemptIntegrationDelivery: (id: string) =>
+    request<IntegrationEventDelivery>(`/integrations/deliveries/${id}/attempt`, { method: "POST" }),
   integrationDeliveries: (query: { connectionId?: string; status?: IntegrationEventDelivery["status"] } = {}) => {
     const params = new URLSearchParams();
     if (query.connectionId) params.set("connection_id", query.connectionId);

@@ -163,6 +163,7 @@ export function openProductPassportPdf(product: Product) {
   const pdf = createPassportPdf({
     title: product.name,
     description: product.description || "Environmental product record",
+    imageUrl: product.image_url,
     score: payload.sustainability_score,
     metadata: [
       ["Category", product.category],
@@ -396,6 +397,7 @@ export function printProductPassport(product: Product) {
 type PassportPdfDocument = {
   title: string;
   description: string;
+  imageUrl?: string | null;
   score: number;
   metadata: Array<[string, string]>;
   metrics: Array<[string, string]>;
@@ -501,11 +503,18 @@ function createPassportPdf(document: PassportPdfDocument) {
 
   rect(commands, 0, 0, page.width, page.height, "1 1 1", true);
   let y = 724;
-  textLine(commands, "Digital Product Passport", page.margin, y, 10, muted);
+  const hasImage = Boolean(document.imageUrl);
+  if (hasImage) {
+    drawProductPdfImage(commands, document.imageUrl ?? "", page.margin, 634, 112, 84, document.title);
+  }
+  const titleX = hasImage ? 184 : page.margin;
+  const titleMaxLength = hasImage ? 21 : 28;
+  const descriptionMaxLength = hasImage ? 52 : 72;
+  textLine(commands, "Digital Product Passport", titleX, y, 10, muted);
   y -= 36;
-  y = textBlock(commands, document.title, page.margin, y, 22, 28, text, 28, "F2");
+  y = textBlock(commands, document.title, titleX, y, 22, 28, text, titleMaxLength, "F2");
   y -= 18;
-  y = textBlock(commands, document.description, page.margin, y, 10, 14, muted, 72);
+  y = textBlock(commands, document.description, titleX, y, 10, 14, muted, descriptionMaxLength);
   y -= 16;
   rect(commands, page.margin, y, 504, 2, green, true);
 
@@ -589,6 +598,54 @@ function pdfSection(commands: string[], title: string, value: string, x: number,
 function card(commands: string[], x: number, y: number, width: number, height: number, stroke: string, fillColor: string) {
   rect(commands, x, y, width, height, fillColor, true);
   rect(commands, x, y, width, height, stroke, false);
+}
+
+function drawProductPdfImage(
+  commands: string[],
+  imageUrl: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fallbackLabel: string,
+) {
+  const svg = decodeSvgDataUrl(imageUrl);
+  const label = (svg ? extractSvgText(svg) : fallbackLabel.split(/\s+/)[0] || "Product").slice(0, 14).toUpperCase();
+  const background = svg ? hexToPdfColor(extractSvgFill(svg, 0) ?? "#eef3f1") : "0.95 0.97 0.96";
+  const foreground = svg ? hexToPdfColor(extractSvgFill(svg, 1) ?? "#177a68") : "0.09 0.48 0.41";
+  rect(commands, x, y, width, height, background, true);
+  rect(commands, x, y, width, height, "0.84 0.87 0.86", false);
+  rect(commands, x + 12, y + 16, width - 24, 24, foreground, false);
+  textLine(commands, label, x + 20, y + 32, 13, foreground, "F2");
+}
+
+function decodeSvgDataUrl(imageUrl: string) {
+  if (!imageUrl.startsWith("data:image/svg+xml,")) return "";
+  try {
+    return decodeURIComponent(imageUrl.slice("data:image/svg+xml,".length));
+  } catch {
+    return "";
+  }
+}
+
+function extractSvgText(svg: string) {
+  const match = svg.match(/<text[^>]*>(.*?)<\/text>/i);
+  return match?.[1]?.replace(/<[^>]+>/g, "").trim() || "Product";
+}
+
+function extractSvgFill(svg: string, index: number) {
+  const fills = Array.from(svg.matchAll(/fill=['"](#(?:[0-9a-f]{3}|[0-9a-f]{6}))['"]/gi)).map((match) => match[1]);
+  return fills[index] ?? fills[0] ?? null;
+}
+
+function hexToPdfColor(hex: string) {
+  const normalized = hex.length === 4
+    ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`
+    : hex;
+  const red = Number.parseInt(normalized.slice(1, 3), 16) / 255;
+  const green = Number.parseInt(normalized.slice(3, 5), 16) / 255;
+  const blue = Number.parseInt(normalized.slice(5, 7), 16) / 255;
+  return `${formatPdfNumber(red)} ${formatPdfNumber(green)} ${formatPdfNumber(blue)}`;
 }
 
 function rect(commands: string[], x: number, y: number, width: number, height: number, color: string, fillShape: boolean) {

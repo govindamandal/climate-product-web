@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { AIStatusCard } from "@/features/ai/ai-status-card";
 import { ProductSearchPicker } from "@/features/products/product-search-picker";
 import { Product, ReportResult, api } from "@/lib/api";
 import { useToastStore } from "@/stores/toast-store";
@@ -116,6 +117,7 @@ export function ReportsPage() {
           Generate executive sustainability summaries from product environmental records.
         </p>
       </div>
+      <AIStatusCard />
 
       <section className="rounded-lg border border-border bg-card p-5">
         {selectedProductQuery.isLoading ? (

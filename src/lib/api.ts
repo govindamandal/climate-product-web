@@ -375,6 +375,17 @@ export type ReportResult = {
   summary: string;
   markdown: string;
 };
+export type AIProviderStatus = {
+  configured_provider: string;
+  active_provider: string;
+  model: string;
+  execution_mode: string;
+  openai_configured: boolean;
+  anthropic_configured: boolean;
+  ai_processing_allowed: boolean;
+  ready: boolean;
+  message: string;
+};
 export type AIJob = {
   id: string;
   organization_id: string;
@@ -822,6 +833,7 @@ export const api = {
   startReportJob: (id: string) =>
     request<AIJob>(`/ai/products/${id}/report/jobs`, { method: "POST" }),
   aiJob: (id: string) => request<AIJob>(`/ai/jobs/${id}`),
+  aiStatus: () => request<AIProviderStatus>("/ai/status"),
   complianceReport: (payload: { product_id: string; sections: string[] }) =>
     request<ComplianceReport>("/compliance/reports", {
       method: "POST",

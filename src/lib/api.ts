@@ -386,6 +386,18 @@ export type AIProviderStatus = {
   ready: boolean;
   message: string;
 };
+export type AIUsageSummary = {
+  organization_id: string;
+  job_count: number;
+  succeeded_job_count: number;
+  failed_job_count: number;
+  provider_breakdown: Record<string, number>;
+  model_breakdown: Record<string, number>;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+};
 export type AIJob = {
   id: string;
   organization_id: string;
@@ -393,6 +405,11 @@ export type AIJob = {
   job_type: "advisor" | "report";
   status: "pending" | "running" | "succeeded" | "failed";
   provider: string | null;
+  model: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  estimated_cost_usd: number | null;
   safety_status: string | null;
   safety_metadata_json: Record<string, unknown> | null;
   result_json: Record<string, unknown> | null;
@@ -834,6 +851,7 @@ export const api = {
     request<AIJob>(`/ai/products/${id}/report/jobs`, { method: "POST" }),
   aiJob: (id: string) => request<AIJob>(`/ai/jobs/${id}`),
   aiStatus: () => request<AIProviderStatus>("/ai/status"),
+  aiUsage: () => request<AIUsageSummary>("/ai/usage"),
   complianceReport: (payload: { product_id: string; sections: string[] }) =>
     request<ComplianceReport>("/compliance/reports", {
       method: "POST",

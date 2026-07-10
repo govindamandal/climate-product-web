@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { AIStatusCard } from "@/features/ai/ai-status-card";
+import { AIUsageCard } from "@/features/ai/ai-usage-card";
 import { ProductSearchPicker } from "@/features/products/product-search-picker";
 import { AdvisorResult, Product, api } from "@/lib/api";
 import { useToastStore } from "@/stores/toast-store";
@@ -100,6 +101,7 @@ export function AdvisorPage() {
         <p className="text-sm text-muted-foreground">Product-specific recommendations, not a chatbot.</p>
       </div>
       <AIStatusCard />
+      <AIUsageCard />
       <section className="rounded-lg border border-border bg-card p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
           {selectedProductQuery.isLoading ? (

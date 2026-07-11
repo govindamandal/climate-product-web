@@ -109,6 +109,9 @@ export type OrganizationPrivacySettings = {
   data_region: string;
   retention_period_days: number;
   allow_ai_processing: boolean;
+  ai_monthly_job_limit: number;
+  ai_monthly_token_limit: number;
+  ai_monthly_cost_limit_usd: number;
   allow_public_passport_sharing: boolean;
   require_verification_for_exports: boolean;
   data_processing_contact_email: string | null;
@@ -120,6 +123,9 @@ export type OrganizationPrivacySettingsUpdate = Partial<
     | "data_region"
     | "retention_period_days"
     | "allow_ai_processing"
+    | "ai_monthly_job_limit"
+    | "ai_monthly_token_limit"
+    | "ai_monthly_cost_limit_usd"
     | "allow_public_passport_sharing"
     | "require_verification_for_exports"
     | "data_processing_contact_email"
@@ -391,12 +397,20 @@ export type AIUsageSummary = {
   job_count: number;
   succeeded_job_count: number;
   failed_job_count: number;
+  current_month_job_count: number;
   provider_breakdown: Record<string, number>;
   model_breakdown: Record<string, number>;
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
   estimated_cost_usd: number;
+  monthly_job_limit: number;
+  monthly_token_limit: number;
+  monthly_cost_limit_usd: number;
+  monthly_jobs_remaining: number | null;
+  monthly_tokens_remaining: number | null;
+  monthly_cost_remaining_usd: number | null;
+  budget_status: "unlimited" | "active" | "exhausted";
 };
 export type AIJob = {
   id: string;

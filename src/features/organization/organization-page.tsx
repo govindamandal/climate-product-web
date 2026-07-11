@@ -389,6 +389,58 @@ export function OrganizationPage() {
                   }}
                 />
               </label>
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Monthly AI jobs</span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Unlimited"
+                  key={`ai-jobs-${privacy.updated_at}`}
+                  defaultValue={privacy.ai_monthly_job_limit || ""}
+                  disabled={!permissions.canManagePrivacyControls || privacyMutation.isPending}
+                  onBlur={(event) => {
+                    const value = Number(event.target.value || 0);
+                    if (value !== privacy.ai_monthly_job_limit) {
+                      privacyMutation.mutate({ ai_monthly_job_limit: value });
+                    }
+                  }}
+                />
+              </label>
+              <label className="space-y-1 text-sm">
+                <span className="font-medium">Monthly AI tokens</span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Unlimited"
+                  key={`ai-tokens-${privacy.updated_at}`}
+                  defaultValue={privacy.ai_monthly_token_limit || ""}
+                  disabled={!permissions.canManagePrivacyControls || privacyMutation.isPending}
+                  onBlur={(event) => {
+                    const value = Number(event.target.value || 0);
+                    if (value !== privacy.ai_monthly_token_limit) {
+                      privacyMutation.mutate({ ai_monthly_token_limit: value });
+                    }
+                  }}
+                />
+              </label>
+              <label className="space-y-1 text-sm md:col-span-2">
+                <span className="font-medium">Monthly AI cost cap, USD</span>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="Unlimited"
+                  key={`ai-cost-${privacy.updated_at}`}
+                  defaultValue={privacy.ai_monthly_cost_limit_usd || ""}
+                  disabled={!permissions.canManagePrivacyControls || privacyMutation.isPending}
+                  onBlur={(event) => {
+                    const value = Number(event.target.value || 0);
+                    if (value !== privacy.ai_monthly_cost_limit_usd) {
+                      privacyMutation.mutate({ ai_monthly_cost_limit_usd: value });
+                    }
+                  }}
+                />
+              </label>
             </div>
             <div className="grid gap-3">
               <PrivacyToggle

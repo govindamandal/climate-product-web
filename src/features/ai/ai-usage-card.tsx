@@ -30,11 +30,15 @@ export function AIUsageCard() {
           <Activity className="text-primary" size={17} /> AI usage governance
         </div>
         <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
-          {usage.data.succeeded_job_count} succeeded / {usage.data.failed_job_count} failed
+          Budget {usage.data.budget_status}
         </span>
       </div>
       <div className="grid gap-3 md:grid-cols-4">
-        <UsageMetric icon={<Zap size={15} />} label="Jobs" value={usage.data.job_count.toString()} />
+        <UsageMetric
+          icon={<Zap size={15} />}
+          label="This month"
+          value={`${usage.data.current_month_job_count}/${formatLimit(usage.data.monthly_job_limit)}`}
+        />
         <UsageMetric icon={<Layers size={15} />} label="Tokens" value={usage.data.total_tokens.toLocaleString()} />
         <UsageMetric
           icon={<CircleDollarSign size={15} />}
@@ -44,7 +48,9 @@ export function AIUsageCard() {
         <UsageMetric icon={<Layers size={15} />} label="Primary model" value={topModel ?? "No usage"} />
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        Provider mix: {topProvider ?? "No completed AI jobs yet"}. Cost is an estimate based on configured token rates.
+        Provider mix: {topProvider ?? "No completed AI jobs yet"}. Remaining this month:{" "}
+        {formatRemaining(usage.data.monthly_jobs_remaining, "jobs")}, {formatRemaining(usage.data.monthly_tokens_remaining, "tokens")},{" "}
+        {formatCurrencyRemaining(usage.data.monthly_cost_remaining_usd)}.
       </p>
     </section>
   );
@@ -66,4 +72,16 @@ function UsageMetric({ icon, label, value }: { icon: ReactNode; label: string; v
 function topEntry(entries: Record<string, number>) {
   const [name, count] = Object.entries(entries).sort((a, b) => b[1] - a[1])[0] ?? [];
   return name ? `${name} (${count})` : null;
+}
+
+function formatLimit(value: number) {
+  return value > 0 ? value.toLocaleString() : "unlimited";
+}
+
+function formatRemaining(value: number | null, unit: string) {
+  return value === null ? `unlimited ${unit}` : `${value.toLocaleString()} ${unit}`;
+}
+
+function formatCurrencyRemaining(value: number | null) {
+  return value === null ? "unlimited cost" : `$${value.toFixed(4)} cost`;
 }

@@ -428,6 +428,13 @@ export type AIJob = {
   safety_metadata_json: Record<string, unknown> | null;
   result_json: Record<string, unknown> | null;
   error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+};
+export type AIJobList = {
+  items: AIJob[];
+  total: number;
 };
 export type BenchmarkItem = {
   product_id: string;
@@ -864,6 +871,14 @@ export const api = {
   startReportJob: (id: string) =>
     request<AIJob>(`/ai/products/${id}/report/jobs`, { method: "POST" }),
   aiJob: (id: string) => request<AIJob>(`/ai/jobs/${id}`),
+  aiJobs: (params?: { limit?: number; status?: string; job_type?: string }) => {
+    const search = new URLSearchParams();
+    if (params?.limit) search.set("limit", String(params.limit));
+    if (params?.status) search.set("status", params.status);
+    if (params?.job_type) search.set("job_type", params.job_type);
+    const query = search.toString();
+    return request<AIJobList>(`/ai/jobs${query ? `?${query}` : ""}`);
+  },
   aiStatus: () => request<AIProviderStatus>("/ai/status"),
   aiUsage: () => request<AIUsageSummary>("/ai/usage"),
   complianceReport: (payload: { product_id: string; sections: string[] }) =>

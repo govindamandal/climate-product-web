@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { AIJobHistoryCard } from "@/features/ai/ai-job-history-card";
 import { AIStatusCard } from "@/features/ai/ai-status-card";
 import { AIUsageCard } from "@/features/ai/ai-usage-card";
 import { ProductSearchPicker } from "@/features/products/product-search-picker";
@@ -120,6 +121,7 @@ export function ReportsPage() {
       </div>
       <AIStatusCard />
       <AIUsageCard />
+      <AIJobHistoryCard jobType="report" />
 
       <section className="rounded-lg border border-border bg-card p-5">
         {selectedProductQuery.isLoading ? (

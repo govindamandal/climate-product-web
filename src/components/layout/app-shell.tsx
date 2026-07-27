@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { BadgeCheck, BarChart3, Brain, Building2, Calculator, ClipboardCheck, FileText, FileBadge, GitCompareArrows, Leaf, LogOut, Menu, Package, PlugZap, ShieldCheck, X } from "lucide-react";
+import { Archive, BadgeCheck, BarChart3, Brain, Building2, Calculator, ClipboardCheck, FileText, FileBadge, GitCompareArrows, Leaf, LogOut, Menu, Package, PlugZap, ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
@@ -18,6 +18,7 @@ const tenantNav = [
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/compliance", label: "Compliance", icon: ClipboardCheck },
   { to: "/verification", label: "Verification", icon: BadgeCheck },
+  { to: "/evidence", label: "Evidence", icon: Archive },
   { to: "/certificates", label: "Certificates", icon: ShieldCheck },
   { to: "/integrations", label: "Integrations", icon: PlugZap },
 ];

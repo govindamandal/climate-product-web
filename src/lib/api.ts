@@ -348,6 +348,42 @@ export type CertificateExtractionList = {
   items: CertificateExtraction[];
   total: number;
 };
+export type EvidenceDocument = {
+  id: string;
+  organization_id: string;
+  product_id: string | null;
+  uploaded_by_user_id: string | null;
+  reviewed_by_user_id: string | null;
+  title: string;
+  document_type:
+    | "epd"
+    | "certificate"
+    | "test_report"
+    | "supplier_declaration"
+    | "invoice"
+    | "bis_standard"
+    | "material_safety_data_sheet"
+    | "other";
+  issuer: string;
+  file_name: string;
+  content_type: string;
+  file_size_bytes: number;
+  file_hash: string;
+  storage_url: string | null;
+  source_url: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  status: "needs_review" | "approved" | "rejected" | "archived";
+  review_notes: string;
+  tags: string;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+};
+export type EvidenceDocumentList = {
+  items: EvidenceDocument[];
+  total: number;
+};
 export type AuthTokens = {
   access_token: string;
   refresh_token: string;
@@ -881,6 +917,7 @@ export const api = {
   },
   aiStatus: () => request<AIProviderStatus>("/ai/status"),
   aiUsage: () => request<AIUsageSummary>("/ai/usage"),
+  retryAIJob: (id: string) => request<AIJob>(`/ai/jobs/${id}/retry`, { method: "POST" }),
   complianceReport: (payload: { product_id: string; sections: string[] }) =>
     request<ComplianceReport>("/compliance/reports", {
       method: "POST",
@@ -967,6 +1004,42 @@ export const api = {
   },
   updateCertificate: (id: string, payload: Partial<CertificateExtraction>) =>
     request<CertificateExtraction>(`/certificates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  evidenceDocuments: (query: { productId?: string; status?: string; documentType?: string; search?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (query.productId) params.set("product_id", query.productId);
+    if (query.status) params.set("status", query.status);
+    if (query.documentType) params.set("document_type", query.documentType);
+    if (query.search) params.set("search", query.search);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<EvidenceDocumentList>(`/evidence${suffix}`);
+  },
+  uploadEvidenceDocument: (payload: {
+    file: File;
+    productId?: string;
+    title?: string;
+    documentType?: string;
+    issuer?: string;
+    sourceUrl?: string;
+    tags?: string;
+  }) => {
+    const formData = new FormData();
+    formData.append("file", payload.file);
+    if (payload.productId) formData.append("product_id", payload.productId);
+    if (payload.title) formData.append("title", payload.title);
+    if (payload.documentType) formData.append("document_type", payload.documentType);
+    if (payload.issuer) formData.append("issuer", payload.issuer);
+    if (payload.sourceUrl) formData.append("source_url", payload.sourceUrl);
+    if (payload.tags) formData.append("tags", payload.tags);
+    return request<EvidenceDocument>("/evidence", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  updateEvidenceDocument: (id: string, payload: Partial<EvidenceDocument>) =>
+    request<EvidenceDocument>(`/evidence/${id}`, {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calculator, Download, FileJson, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
+import { Archive, Calculator, CheckCircle2, Clock3, Download, FileJson, FileText, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,11 @@ export function ProductDetailPage() {
   const addToast = useToastStore((state) => state.addToast);
   const permissions = permissionsFor(user);
   const { data, isLoading } = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
+  const evidence = useQuery({
+    queryKey: ["evidence", productId, "product-detail"],
+    queryFn: () => api.evidenceDocuments({ productId, limit: 6 }),
+    enabled: Boolean(productId),
+  });
   const updateMutation = useMutation({
     mutationFn: (values: ProductEditFormValues) => api.updateProduct(productId, {
       name: values.name,
@@ -239,6 +244,63 @@ export function ProductDetailPage() {
         </div>
       </section>
       <section className="rounded-lg border border-border bg-card p-5">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+          <div>
+            <h2 className="font-semibold">Product Evidence</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Linked EPDs, certificates, supplier declarations, and test reports used for buyer-ready product claims.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={() => navigate(`/evidence?productId=${data.id}`)}>
+            <Archive size={16} /> Open library
+          </Button>
+        </div>
+        {evidence.isLoading ? (
+          <LoadingState label="Loading product evidence" />
+        ) : evidence.data?.items.length ? (
+          <div className="mt-4 space-y-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <EvidenceStat
+                icon={<CheckCircle2 size={17} />}
+                label="Approved"
+                value={String(evidence.data.items.filter((item) => item.status === "approved").length)}
+              />
+              <EvidenceStat
+                icon={<Clock3 size={17} />}
+                label="Needs review"
+                value={String(evidence.data.items.filter((item) => item.status === "needs_review").length)}
+              />
+              <EvidenceStat
+                icon={<FileText size={17} />}
+                label="Evidence files"
+                value={String(evidence.data.total)}
+              />
+            </div>
+            <div className="overflow-hidden rounded-md border border-border">
+              {evidence.data.items.map((item) => (
+                <button
+                  key={item.id}
+                  className="grid w-full gap-2 border-t border-border px-3 py-3 text-left first:border-t-0 hover:bg-muted md:grid-cols-[1.2fr_160px_130px]"
+                  type="button"
+                  onClick={() => navigate(`/evidence?productId=${data.id}`)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{item.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{item.file_name}</span>
+                  </span>
+                  <span className="text-sm text-muted-foreground">{formatEvidenceType(item.document_type)}</span>
+                  <span className="text-sm capitalize text-muted-foreground">{item.status.replaceAll("_", " ")}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-md border border-dashed border-border bg-background p-5 text-sm text-muted-foreground">
+            No evidence is linked to this product yet.
+          </div>
+        )}
+      </section>
+      <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="font-semibold">Environmental History</h2>
         <div className="mt-4 overflow-hidden rounded-md border border-border">
           <div className="grid grid-cols-6 bg-muted px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
@@ -276,6 +338,22 @@ export function ProductDetailPage() {
       </Drawer>
     </div>
   );
+}
+
+function EvidenceStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function formatEvidenceType(value: string) {
+  return value.replaceAll("_", " ");
 }
 
 function Field({ label, value }: { label: string; value: string }) {

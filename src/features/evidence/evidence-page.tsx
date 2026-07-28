@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, CheckCircle2, FileCheck2, FileText, Search, Upload, XCircle } from "lucide-react";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,8 @@ const documentTypes = [
 
 export function EvidencePage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedProductId = searchParams.get("productId") ?? "";
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [documentType, setDocumentType] = useState("epd");
@@ -29,13 +32,25 @@ export function EvidencePage() {
   const [tags, setTags] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [filterProduct, setFilterProduct] = useState<Product | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
+  const linkedProduct = useQuery({
+    queryKey: ["product", linkedProductId, "evidence-filter"],
+    queryFn: () => api.product(linkedProductId),
+    enabled: Boolean(linkedProductId),
+  });
+
+  useEffect(() => {
+    if (linkedProduct.data) setFilterProduct(linkedProduct.data);
+  }, [linkedProduct.data]);
+
   const evidence = useQuery({
-    queryKey: ["evidence", statusFilter, typeFilter, search],
+    queryKey: ["evidence", filterProduct?.id, statusFilter, typeFilter, search],
     queryFn: () =>
       api.evidenceDocuments({
+        productId: filterProduct?.id,
         status: statusFilter || undefined,
         documentType: typeFilter || undefined,
         search: search || undefined,
@@ -59,6 +74,10 @@ export function EvidencePage() {
       setTags("");
       setSourceUrl("");
       setSelectedProduct(null);
+      if (selectedProduct) {
+        setFilterProduct(selectedProduct);
+        setSearchParams({ productId: selectedProduct.id });
+      }
       queryClient.invalidateQueries({ queryKey: ["evidence"] });
     },
     meta: {
@@ -134,11 +153,35 @@ export function EvidencePage() {
       </form>
 
       <section className="rounded-lg border border-border bg-card p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px_180px_180px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-2.5 text-muted-foreground" size={16} />
             <Input className="pl-9" placeholder="Search title, file, issuer, tags" value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium">Product filter</span>
+              <Button
+                className="h-7 px-2"
+                type="button"
+                variant="ghost"
+                disabled={!filterProduct}
+                onClick={() => {
+                  setFilterProduct(null);
+                  setSearchParams({});
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+            <ProductSearchPicker
+              selectedProduct={filterProduct}
+              onSelect={(product) => {
+                setFilterProduct(product);
+                setSearchParams({ productId: product.id });
+              }}
+            />
+          </div>
           <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="">All statuses</option>
             <option value="needs_review">Needs review</option>

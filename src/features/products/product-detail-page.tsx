@@ -8,7 +8,7 @@ import { KPIWidget } from "@/components/ui/kpi-widget";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
-import { buildPassportPayload, openJsonViewer, openProductPassportPdf, printProductPassport } from "@/lib/exports";
+import { buildEvidencePackPayload, buildPassportPayload, openEvidencePackPdf, openJsonViewer, openProductPassportPdf, printProductPassport } from "@/lib/exports";
 import { permissionsFor } from "@/lib/permissions";
 import { useAuthStore } from "@/stores/auth-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -31,7 +31,7 @@ export function ProductDetailPage() {
   const { data, isLoading } = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
   const evidence = useQuery({
     queryKey: ["evidence", productId, "product-detail"],
-    queryFn: () => api.evidenceDocuments({ productId, limit: 6 }),
+    queryFn: () => api.evidenceDocuments({ productId, limit: 100 }),
     enabled: Boolean(productId),
   });
   const updateMutation = useMutation({
@@ -251,9 +251,31 @@ export function ProductDetailPage() {
               Linked EPDs, certificates, supplier declarations, and test reports used for buyer-ready product claims.
             </p>
           </div>
-          <Button variant="secondary" onClick={() => navigate(`/evidence?productId=${data.id}`)}>
-            <Archive size={16} /> Open library
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              disabled={!evidence.data?.items.length}
+              onClick={() => {
+                openJsonViewer(`${data.name}-evidence-pack.json`, buildEvidencePackPayload(data, evidence.data?.items ?? []));
+                addToast({ title: "Evidence pack JSON opened", variant: "success" });
+              }}
+            >
+              <FileJson size={16} /> JSON
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={!evidence.data?.items.length}
+              onClick={() => {
+                openEvidencePackPdf(data, evidence.data?.items ?? []);
+                addToast({ title: "Evidence pack PDF opened", variant: "success" });
+              }}
+            >
+              <Download size={16} /> PDF
+            </Button>
+            <Button variant="secondary" onClick={() => navigate(`/evidence?productId=${data.id}`)}>
+              <Archive size={16} /> Open library
+            </Button>
+          </div>
         </div>
         {evidence.isLoading ? (
           <LoadingState label="Loading product evidence" />
@@ -277,7 +299,7 @@ export function ProductDetailPage() {
               />
             </div>
             <div className="overflow-hidden rounded-md border border-border">
-              {evidence.data.items.map((item) => (
+              {evidence.data.items.slice(0, 6).map((item) => (
                 <button
                   key={item.id}
                   className="grid w-full gap-2 border-t border-border px-3 py-3 text-left first:border-t-0 hover:bg-muted md:grid-cols-[1.2fr_160px_130px]"

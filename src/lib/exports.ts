@@ -1,4 +1,4 @@
-import type { ComplianceReport, Product, ProfessionalReportPack } from "@/lib/api";
+import type { ComplianceReport, EvidenceDocument, Product, ProfessionalReportPack } from "@/lib/api";
 
 type PassportPayload = {
   schema: string;
@@ -33,6 +33,54 @@ type PassportPayload = {
   generated_at: string;
 };
 
+type EvidencePackPayload = {
+  schema: string;
+  generated_at: string;
+  product: Pick<
+    Product,
+    | "id"
+    | "name"
+    | "category"
+    | "manufacturer"
+    | "country"
+    | "product_code"
+    | "declared_unit"
+    | "lifecycle_scope"
+    | "product_standard"
+    | "pcr"
+    | "data_quality"
+  >;
+  readiness: {
+    total_documents: number;
+    approved_documents: number;
+    needs_review_documents: number;
+    rejected_documents: number;
+    archived_documents: number;
+    approval_rate_pct: number;
+  };
+  evidence_documents: Array<
+    Pick<
+      EvidenceDocument,
+      | "id"
+      | "title"
+      | "document_type"
+      | "issuer"
+      | "file_name"
+      | "content_type"
+      | "file_size_bytes"
+      | "file_hash"
+      | "source_url"
+      | "valid_from"
+      | "valid_until"
+      | "status"
+      | "review_notes"
+      | "tags"
+      | "created_at"
+      | "reviewed_at"
+    >
+  >;
+};
+
 export function buildPassportPayload(product: Product): PassportPayload {
   const latest = product.environmental_records[0] ?? null;
   return {
@@ -65,6 +113,56 @@ export function buildPassportPayload(product: Product): PassportPayload {
     environmental_metrics: latest,
     sustainability_score: latest?.sustainability_score ?? 0,
     generated_at: new Date().toISOString(),
+  };
+}
+
+export function buildEvidencePackPayload(product: Product, evidenceDocuments: EvidenceDocument[]): EvidencePackPayload {
+  const approved = evidenceDocuments.filter((item) => item.status === "approved").length;
+  const needsReview = evidenceDocuments.filter((item) => item.status === "needs_review").length;
+  const rejected = evidenceDocuments.filter((item) => item.status === "rejected").length;
+  const archived = evidenceDocuments.filter((item) => item.status === "archived").length;
+  return {
+    schema: "product-evidence-pack.v1",
+    generated_at: new Date().toISOString(),
+    product: {
+      id: product.id,
+      name: product.name,
+      category: product.category,
+      manufacturer: product.manufacturer,
+      country: product.country,
+      product_code: product.product_code,
+      declared_unit: product.declared_unit,
+      lifecycle_scope: product.lifecycle_scope,
+      product_standard: product.product_standard,
+      pcr: product.pcr,
+      data_quality: product.data_quality,
+    },
+    readiness: {
+      total_documents: evidenceDocuments.length,
+      approved_documents: approved,
+      needs_review_documents: needsReview,
+      rejected_documents: rejected,
+      archived_documents: archived,
+      approval_rate_pct: evidenceDocuments.length ? Math.round((approved / evidenceDocuments.length) * 100) : 0,
+    },
+    evidence_documents: evidenceDocuments.map((item) => ({
+      id: item.id,
+      title: item.title,
+      document_type: item.document_type,
+      issuer: item.issuer,
+      file_name: item.file_name,
+      content_type: item.content_type,
+      file_size_bytes: item.file_size_bytes,
+      file_hash: item.file_hash,
+      source_url: item.source_url,
+      valid_from: item.valid_from,
+      valid_until: item.valid_until,
+      status: item.status,
+      review_notes: item.review_notes,
+      tags: item.tags,
+      created_at: item.created_at,
+      reviewed_at: item.reviewed_at,
+    })),
   };
 }
 
@@ -228,6 +326,24 @@ export function openProfessionalReportPdf(report: ComplianceReport | Professiona
     approvalVersion: verification?.approval_version ? `v${verification.approval_version}` : "Not approved",
     verificationStatement: verification?.verification_statement ?? "",
     checks,
+  });
+  const blob = new Blob([pdf], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
+
+export function openEvidencePackPdf(product: Product, evidenceDocuments: EvidenceDocument[]) {
+  const payload = buildEvidencePackPayload(product, evidenceDocuments);
+  const pdf = createEvidencePackPdf({
+    productName: product.name,
+    productCategory: product.category,
+    manufacturer: product.manufacturer,
+    productStandard: product.product_standard || "Not specified",
+    pcr: product.pcr || "Not specified",
+    dataQuality: product.data_quality,
+    generatedAt: payload.generated_at,
+    readiness: payload.readiness,
+    evidenceDocuments,
   });
   const blob = new Blob([pdf], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
@@ -421,6 +537,111 @@ type ProfessionalReportPdfDocument = {
   verificationStatement: string;
   checks: Array<{ label: string; status: string; evidence: string; recommendation: string }>;
 };
+
+type EvidencePackPdfDocument = {
+  productName: string;
+  productCategory: string;
+  manufacturer: string;
+  productStandard: string;
+  pcr: string;
+  dataQuality: string;
+  generatedAt: string;
+  readiness: EvidencePackPayload["readiness"];
+  evidenceDocuments: EvidenceDocument[];
+};
+
+function createEvidencePackPdf(document: EvidencePackPdfDocument) {
+  const commands: string[] = [];
+  const page = { width: 612, height: 792, margin: 54 };
+  const green = "0.09 0.48 0.41";
+  const text = "0.07 0.15 0.13";
+  const muted = "0.39 0.45 0.44";
+  const border = "0.84 0.87 0.86";
+  const fill = "0.95 0.97 0.96";
+
+  rect(commands, 0, 0, page.width, page.height, "1 1 1", true);
+  let y = 724;
+  textLine(commands, "Product Evidence Pack", page.margin, y, 10, muted);
+  y -= 34;
+  y = textBlock(commands, document.productName, page.margin, y, 22, 28, text, 30, "F2");
+  y -= 16;
+  y = textBlock(commands, `${document.manufacturer} - ${document.productCategory}`, page.margin, y, 10, 14, muted, 72);
+  y -= 16;
+  rect(commands, page.margin, y, 504, 2, green, true);
+
+  rect(commands, 456, 674, 102, 72, green, false);
+  textLine(commands, "Approved", 484, 722, 10, muted);
+  textLine(commands, `${document.readiness.approval_rate_pct}%`, 480, 696, 24, text, "F2");
+  textLine(commands, "of evidence", 482, 681, 10, muted);
+
+  y -= 44;
+  const metadata: Array<[string, string]> = [
+    ["Standard", document.productStandard],
+    ["PCR", document.pcr],
+    ["Data Quality", document.dataQuality],
+    ["Generated", new Date(document.generatedAt).toLocaleDateString()],
+  ];
+  metadata.forEach(([label, value], index) => {
+    const x = page.margin + (index % 2) * 258;
+    const boxY = y - Math.floor(index / 2) * 50;
+    card(commands, x, boxY - 34, 238, 38, border, "1 1 1");
+    textLine(commands, label.toUpperCase(), x + 12, boxY - 8, 7, muted);
+    textBlock(commands, value, x + 12, boxY - 24, 10, 12, text, 34, "F2");
+  });
+
+  y -= Math.ceil(metadata.length / 2) * 50 + 18;
+  textLine(commands, "Evidence Readiness", page.margin, y, 14, text, "F2");
+  y -= 24;
+  const stats: Array<[string, string]> = [
+    ["Total", String(document.readiness.total_documents)],
+    ["Approved", String(document.readiness.approved_documents)],
+    ["Needs Review", String(document.readiness.needs_review_documents)],
+    ["Rejected", String(document.readiness.rejected_documents)],
+  ];
+  const columnWidth = 504 / stats.length;
+  rect(commands, page.margin, y - 46, 504, 48, border, false);
+  stats.forEach(([label, value], index) => {
+    const x = page.margin + index * columnWidth;
+    if (index > 0) rect(commands, x, y - 46, 0.7, 48, border, true);
+    textLine(commands, label.toUpperCase(), x + 9, y - 14, 7, muted);
+    textLine(commands, value, x + 9, y - 35, 14, text, "F2");
+  });
+
+  y -= 82;
+  textLine(commands, "Evidence Documents", page.margin, y, 14, text, "F2");
+  y -= 18;
+  document.evidenceDocuments.slice(0, 8).forEach((item) => {
+    const boxHeight = 58;
+    rect(commands, page.margin, y - boxHeight, 504, boxHeight, fill, true);
+    rect(commands, page.margin, y - boxHeight, 504, boxHeight, border, false);
+    textBlock(commands, item.title, page.margin + 12, y - 15, 10, 12, text, 62, "F2");
+    textBlock(
+      commands,
+      `${item.document_type.replaceAll("_", " ")} - ${item.status.replaceAll("_", " ")} - ${item.issuer || "Issuer not provided"}`,
+      page.margin + 12,
+      y - 31,
+      8,
+      10,
+      muted,
+      94,
+    );
+    textLine(commands, `Hash: ${item.file_hash.slice(0, 32)}...`, page.margin + 12, y - 47, 8, muted);
+    y -= boxHeight + 8;
+  });
+  if (!document.evidenceDocuments.length) {
+    textLine(commands, "No evidence documents are linked to this product.", page.margin, y, 10, muted);
+  }
+
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    `<< /Length ${commands.join("\n").length} >>\nstream\n${commands.join("\n")}\nendstream`,
+  ];
+  return assemblePdf(objects);
+}
 
 function createProfessionalReportPdf(document: ProfessionalReportPdfDocument) {
   const commands: string[] = [];

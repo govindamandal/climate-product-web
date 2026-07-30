@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, FileCheck2, FileText, Search, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, ExternalLink, FileCheck2, FileText, Search, Upload, XCircle } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -258,6 +258,15 @@ function EvidenceCard({
           {item.tags ? <p className="mt-3 text-xs text-muted-foreground">Tags: {item.tags}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
+          {item.storage_url || item.source_url ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => window.open(item.storage_url ?? item.source_url ?? "", "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink size={15} /> Open file
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             size="sm"

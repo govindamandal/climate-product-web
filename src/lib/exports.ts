@@ -69,6 +69,7 @@ type EvidencePackPayload = {
       | "content_type"
       | "file_size_bytes"
       | "file_hash"
+      | "storage_url"
       | "source_url"
       | "valid_from"
       | "valid_until"
@@ -154,6 +155,7 @@ export function buildEvidencePackPayload(product: Product, evidenceDocuments: Ev
       content_type: item.content_type,
       file_size_bytes: item.file_size_bytes,
       file_hash: item.file_hash,
+      storage_url: item.storage_url,
       source_url: item.source_url,
       valid_from: item.valid_from,
       valid_until: item.valid_until,

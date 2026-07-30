@@ -308,7 +308,9 @@ export function ProductDetailPage() {
                 >
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{item.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{item.file_name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {item.file_name}{item.storage_url ? " - Stored file" : item.source_url ? " - Source link" : ""}
+                    </span>
                   </span>
                   <span className="text-sm text-muted-foreground">{formatEvidenceType(item.document_type)}</span>
                   <span className="text-sm capitalize text-muted-foreground">{item.status.replaceAll("_", " ")}</span>

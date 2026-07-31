@@ -384,6 +384,11 @@ export type EvidenceDocumentList = {
   items: EvidenceDocument[];
   total: number;
 };
+export type EvidenceDownloadUrl = {
+  url: string;
+  expires_in_seconds: number;
+  is_signed: boolean;
+};
 export type AuthTokens = {
   access_token: string;
   refresh_token: string;
@@ -1044,6 +1049,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
+  evidenceDownloadUrl: (id: string) => request<EvidenceDownloadUrl>(`/evidence/${id}/download-url`),
 };
 
 function auditParams(query: AuditLogQuery, defaultLimit: number) {

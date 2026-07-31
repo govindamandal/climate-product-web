@@ -94,6 +94,16 @@ export function EvidencePage() {
       errorMessage: "Could not update evidence",
     },
   });
+  const downloadMutation = useMutation({
+    mutationFn: (id: string) => api.evidenceDownloadUrl(id),
+    onSuccess: (download) => {
+      window.open(download.url, "_blank", "noopener,noreferrer");
+    },
+    meta: {
+      successMessage: "Evidence file access granted",
+      errorMessage: "Could not open evidence file",
+    },
+  });
 
   const onFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const nextFile = event.target.files?.[0] ?? null;
@@ -207,6 +217,8 @@ export function EvidencePage() {
               key={item.id}
               item={item}
               pending={updateMutation.isPending}
+              downloadPending={downloadMutation.isPending}
+              onOpenFile={() => downloadMutation.mutate(item.id)}
               onUpdate={(values) => updateMutation.mutate({ id: item.id, values })}
             />
           ))}
@@ -224,10 +236,14 @@ export function EvidencePage() {
 function EvidenceCard({
   item,
   pending,
+  downloadPending,
+  onOpenFile,
   onUpdate,
 }: {
   item: EvidenceDocument;
   pending: boolean;
+  downloadPending: boolean;
+  onOpenFile: () => void;
   onUpdate: (values: Partial<EvidenceDocument>) => void;
 }) {
   const statusStyles: Record<EvidenceDocument["status"], string> = {
@@ -262,7 +278,8 @@ function EvidenceCard({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => window.open(item.storage_url ?? item.source_url ?? "", "_blank", "noopener,noreferrer")}
+              disabled={downloadPending}
+              onClick={onOpenFile}
             >
               <ExternalLink size={15} /> Open file
             </Button>

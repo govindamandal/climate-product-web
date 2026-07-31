@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, ExternalLink, FileCheck2, FileText, Search, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, ExternalLink, FileCheck2, FileText, History, Search, Upload, XCircle } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -29,12 +29,17 @@ export function EvidencePage() {
   const [title, setTitle] = useState("");
   const [documentType, setDocumentType] = useState("epd");
   const [issuer, setIssuer] = useState("");
+  const [revision, setRevision] = useState("v1");
+  const [supersedesEvidenceId, setSupersedesEvidenceId] = useState("");
+  const [validFrom, setValidFrom] = useState("");
+  const [validUntil, setValidUntil] = useState("");
   const [tags, setTags] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterProduct, setFilterProduct] = useState<Product | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [currentOnly, setCurrentOnly] = useState(false);
   const [search, setSearch] = useState("");
   const linkedProduct = useQuery({
     queryKey: ["product", linkedProductId, "evidence-filter"],
@@ -47,13 +52,14 @@ export function EvidencePage() {
   }, [linkedProduct.data]);
 
   const evidence = useQuery({
-    queryKey: ["evidence", filterProduct?.id, statusFilter, typeFilter, search],
+    queryKey: ["evidence", filterProduct?.id, statusFilter, typeFilter, search, currentOnly],
     queryFn: () =>
       api.evidenceDocuments({
         productId: filterProduct?.id,
         status: statusFilter || undefined,
         documentType: typeFilter || undefined,
         search: search || undefined,
+        currentOnly,
       }),
   });
   const uploadMutation = useMutation({
@@ -65,12 +71,20 @@ export function EvidencePage() {
         documentType,
         issuer,
         sourceUrl,
+        revision,
+        supersedesEvidenceId,
+        validFrom,
+        validUntil,
         tags,
       }),
     onSuccess: () => {
       setFile(null);
       setTitle("");
       setIssuer("");
+      setRevision("v1");
+      setSupersedesEvidenceId("");
+      setValidFrom("");
+      setValidUntil("");
       setTags("");
       setSourceUrl("");
       setSelectedProduct(null);
@@ -160,10 +174,26 @@ export function EvidencePage() {
             <Upload size={16} /> Upload
           </Button>
         </div>
+        <div className="mt-3 grid gap-3 lg:grid-cols-[140px_1fr_160px_160px]">
+          <Input placeholder="Revision" value={revision} onChange={(event) => setRevision(event.target.value)} />
+          <Input
+            placeholder="Supersedes evidence ID"
+            value={supersedesEvidenceId}
+            onChange={(event) => setSupersedesEvidenceId(event.target.value)}
+          />
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            Valid from
+            <Input type="date" value={validFrom} onChange={(event) => setValidFrom(event.target.value)} />
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+            Valid until
+            <Input type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
+          </label>
+        </div>
       </form>
 
       <section className="rounded-lg border border-border bg-card p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_260px_180px_180px]">
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px_180px_180px_150px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-2.5 text-muted-foreground" size={16} />
             <Input className="pl-9" placeholder="Search title, file, issuer, tags" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -205,6 +235,15 @@ export function EvidencePage() {
               <option key={item.value} value={item.value}>{item.label}</option>
             ))}
           </Select>
+          <label className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+            <input
+              className="h-4 w-4 accent-primary"
+              type="checkbox"
+              checked={currentOnly}
+              onChange={(event) => setCurrentOnly(event.target.checked)}
+            />
+            Current only
+          </label>
         </div>
       </section>
 
@@ -219,6 +258,12 @@ export function EvidencePage() {
               pending={updateMutation.isPending}
               downloadPending={downloadMutation.isPending}
               onOpenFile={() => downloadMutation.mutate(item.id)}
+              onSupersede={() => {
+                setSupersedesEvidenceId(item.id);
+                setDocumentType(item.document_type);
+                setRevision(nextRevision(item.revision));
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
               onUpdate={(values) => updateMutation.mutate({ id: item.id, values })}
             />
           ))}
@@ -238,12 +283,14 @@ function EvidenceCard({
   pending,
   downloadPending,
   onOpenFile,
+  onSupersede,
   onUpdate,
 }: {
   item: EvidenceDocument;
   pending: boolean;
   downloadPending: boolean;
   onOpenFile: () => void;
+  onSupersede: () => void;
   onUpdate: (values: Partial<EvidenceDocument>) => void;
 }) {
   const statusStyles: Record<EvidenceDocument["status"], string> = {
@@ -261,6 +308,10 @@ function EvidenceCard({
             <FileText size={17} className="text-primary" />
             <h2 className="font-semibold">{item.title}</h2>
             <span className={`rounded-full px-2 py-1 text-xs ${statusStyles[item.status]}`}>{item.status.replaceAll("_", " ")}</span>
+            <span className="rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{item.revision}</span>
+            <span className={`rounded-full px-2 py-1 text-xs ${item.is_current ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+              {item.is_current ? "Current" : "Superseded"}
+            </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {item.file_name} · {formatType(item.document_type)} · {formatBytes(item.file_size_bytes)}
@@ -269,6 +320,8 @@ function EvidenceCard({
             <Info label="Issuer" value={item.issuer || "Not provided"} />
             <Info label="Hash" value={`${item.file_hash.slice(0, 16)}...`} />
             <Info label="Uploaded" value={new Date(item.created_at).toLocaleDateString()} />
+            <Info label="Validity" value={formatValidity(item.valid_from, item.valid_until)} />
+            <Info label="Supersedes" value={item.supersedes_evidence_id ? `${item.supersedes_evidence_id.slice(0, 8)}...` : "None"} />
           </div>
           {item.review_notes ? <p className="mt-3 text-sm text-muted-foreground">{item.review_notes}</p> : null}
           {item.tags ? <p className="mt-3 text-xs text-muted-foreground">Tags: {item.tags}</p> : null}
@@ -284,6 +337,22 @@ function EvidenceCard({
               <ExternalLink size={15} /> Open file
             </Button>
           ) : null}
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pending}
+            onClick={onSupersede}
+          >
+            <History size={15} /> Supersede
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={pending || item.is_current}
+            onClick={() => onUpdate({ is_current: true })}
+          >
+            <CheckCircle2 size={15} /> Mark current
+          </Button>
           <Button
             variant="secondary"
             size="sm"
@@ -331,4 +400,17 @@ function formatBytes(bytes: number) {
 
 function formatType(value: string) {
   return value.replaceAll("_", " ");
+}
+
+function formatValidity(validFrom: string | null, validUntil: string | null) {
+  if (!validFrom && !validUntil) return "Not specified";
+  const from = validFrom ? new Date(validFrom).toLocaleDateString() : "Open";
+  const until = validUntil ? new Date(validUntil).toLocaleDateString() : "Open";
+  return `${from} - ${until}`;
+}
+
+function nextRevision(value: string) {
+  const match = value.match(/^v(\d+)$/i);
+  if (!match) return "v2";
+  return `v${Number(match[1]) + 1}`;
 }

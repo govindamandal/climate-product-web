@@ -31,7 +31,7 @@ export function ProductDetailPage() {
   const { data, isLoading } = useQuery({ queryKey: ["product", productId], queryFn: () => api.product(productId) });
   const evidence = useQuery({
     queryKey: ["evidence", productId, "product-detail"],
-    queryFn: () => api.evidenceDocuments({ productId, limit: 100 }),
+    queryFn: () => api.evidenceDocuments({ productId, currentOnly: true, limit: 100 }),
     enabled: Boolean(productId),
   });
   const updateMutation = useMutation({
@@ -334,7 +334,7 @@ export function ProductDetailPage() {
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-medium">{item.title}</span>
                     <span className="block truncate text-xs text-muted-foreground">
-                      {item.file_name}{item.storage_url ? " - Stored file" : item.source_url ? " - Source link" : ""}
+                      {item.file_name} - {item.revision}{item.storage_url ? " - Stored file" : item.source_url ? " - Source link" : ""}
                     </span>
                   </span>
                   <span className="text-sm text-muted-foreground">{formatEvidenceType(item.document_type)}</span>

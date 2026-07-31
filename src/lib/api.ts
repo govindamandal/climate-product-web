@@ -371,6 +371,9 @@ export type EvidenceDocument = {
   file_hash: string;
   storage_url: string | null;
   source_url: string | null;
+  revision: string;
+  supersedes_evidence_id: string | null;
+  is_current: boolean;
   valid_from: string | null;
   valid_until: string | null;
   status: "needs_review" | "approved" | "rejected" | "archived";
@@ -1012,12 +1015,13 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  evidenceDocuments: (query: { productId?: string; status?: string; documentType?: string; search?: string; limit?: number } = {}) => {
+  evidenceDocuments: (query: { productId?: string; status?: string; documentType?: string; search?: string; currentOnly?: boolean; limit?: number } = {}) => {
     const params = new URLSearchParams();
     if (query.productId) params.set("product_id", query.productId);
     if (query.status) params.set("status", query.status);
     if (query.documentType) params.set("document_type", query.documentType);
     if (query.search) params.set("search", query.search);
+    if (query.currentOnly) params.set("current_only", "true");
     if (query.limit) params.set("limit", String(query.limit));
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request<EvidenceDocumentList>(`/evidence${suffix}`);
@@ -1029,6 +1033,10 @@ export const api = {
     documentType?: string;
     issuer?: string;
     sourceUrl?: string;
+    revision?: string;
+    supersedesEvidenceId?: string;
+    validFrom?: string;
+    validUntil?: string;
     tags?: string;
   }) => {
     const formData = new FormData();
@@ -1038,6 +1046,10 @@ export const api = {
     if (payload.documentType) formData.append("document_type", payload.documentType);
     if (payload.issuer) formData.append("issuer", payload.issuer);
     if (payload.sourceUrl) formData.append("source_url", payload.sourceUrl);
+    if (payload.revision) formData.append("revision", payload.revision);
+    if (payload.supersedesEvidenceId) formData.append("supersedes_evidence_id", payload.supersedesEvidenceId);
+    if (payload.validFrom) formData.append("valid_from", payload.validFrom);
+    if (payload.validUntil) formData.append("valid_until", payload.validUntil);
     if (payload.tags) formData.append("tags", payload.tags);
     return request<EvidenceDocument>("/evidence", {
       method: "POST",

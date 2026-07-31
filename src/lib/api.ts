@@ -387,6 +387,15 @@ export type EvidenceDocumentList = {
   items: EvidenceDocument[];
   total: number;
 };
+export type EvidenceExpirySummary = {
+  as_of: string;
+  expiring_window_days: number;
+  current_documents: number;
+  expired: number;
+  expiring_soon: number;
+  valid: number;
+  missing_validity: number;
+};
 export type EvidenceDownloadUrl = {
   url: string;
   expires_in_seconds: number;
@@ -1015,16 +1024,24 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(payload),
     }),
-  evidenceDocuments: (query: { productId?: string; status?: string; documentType?: string; search?: string; currentOnly?: boolean; limit?: number } = {}) => {
+  evidenceDocuments: (query: { productId?: string; status?: string; documentType?: string; search?: string; currentOnly?: boolean; expirationStatus?: string; limit?: number } = {}) => {
     const params = new URLSearchParams();
     if (query.productId) params.set("product_id", query.productId);
     if (query.status) params.set("status", query.status);
     if (query.documentType) params.set("document_type", query.documentType);
     if (query.search) params.set("search", query.search);
     if (query.currentOnly) params.set("current_only", "true");
+    if (query.expirationStatus) params.set("expiration_status", query.expirationStatus);
     if (query.limit) params.set("limit", String(query.limit));
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request<EvidenceDocumentList>(`/evidence${suffix}`);
+  },
+  evidenceExpirySummary: (query: { currentOnly?: boolean; windowDays?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (query.currentOnly !== undefined) params.set("current_only", String(query.currentOnly));
+    if (query.windowDays) params.set("window_days", String(query.windowDays));
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    return request<EvidenceExpirySummary>(`/evidence/expiry-summary${suffix}`);
   },
   uploadEvidenceDocument: (payload: {
     file: File;

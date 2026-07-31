@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, CheckCircle2, ExternalLink, FileCheck2, FileText, History, Search, Upload, XCircle } from "lucide-react";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { AlertTriangle, Archive, CalendarClock, CheckCircle2, ExternalLink, FileCheck2, FileText, History, Search, Upload, XCircle } from "lucide-react";
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,6 +19,14 @@ const documentTypes = [
   { value: "bis_standard", label: "BIS standard" },
   { value: "material_safety_data_sheet", label: "MSDS" },
   { value: "other", label: "Other" },
+];
+
+const expirationStatuses = [
+  { value: "", label: "All validity" },
+  { value: "expired", label: "Expired" },
+  { value: "expiring_soon", label: "Expiring soon" },
+  { value: "valid", label: "Valid" },
+  { value: "missing_validity", label: "Missing validity" },
 ];
 
 export function EvidencePage() {
@@ -40,6 +48,7 @@ export function EvidencePage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [currentOnly, setCurrentOnly] = useState(false);
+  const [expirationFilter, setExpirationFilter] = useState("");
   const [search, setSearch] = useState("");
   const linkedProduct = useQuery({
     queryKey: ["product", linkedProductId, "evidence-filter"],
@@ -52,7 +61,7 @@ export function EvidencePage() {
   }, [linkedProduct.data]);
 
   const evidence = useQuery({
-    queryKey: ["evidence", filterProduct?.id, statusFilter, typeFilter, search, currentOnly],
+    queryKey: ["evidence", filterProduct?.id, statusFilter, typeFilter, search, currentOnly, expirationFilter],
     queryFn: () =>
       api.evidenceDocuments({
         productId: filterProduct?.id,
@@ -60,7 +69,12 @@ export function EvidencePage() {
         documentType: typeFilter || undefined,
         search: search || undefined,
         currentOnly,
+        expirationStatus: expirationFilter || undefined,
       }),
+  });
+  const expirySummary = useQuery({
+    queryKey: ["evidence-expiry-summary"],
+    queryFn: () => api.evidenceExpirySummary({ currentOnly: true, windowDays: 60 }),
   });
   const uploadMutation = useMutation({
     mutationFn: () =>
@@ -93,6 +107,7 @@ export function EvidencePage() {
         setSearchParams({ productId: selectedProduct.id });
       }
       queryClient.invalidateQueries({ queryKey: ["evidence"] });
+      queryClient.invalidateQueries({ queryKey: ["evidence-expiry-summary"] });
     },
     meta: {
       successMessage: "Evidence uploaded",
@@ -102,7 +117,10 @@ export function EvidencePage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, values }: { id: string; values: Partial<EvidenceDocument> }) =>
       api.updateEvidenceDocument(id, values),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["evidence"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["evidence"] });
+      queryClient.invalidateQueries({ queryKey: ["evidence-expiry-summary"] });
+    },
     meta: {
       successMessage: "Evidence updated",
       errorMessage: "Could not update evidence",
@@ -140,6 +158,33 @@ export function EvidencePage() {
           Upload and review product evidence for DPPs, compliance packs, verification, and buyer diligence.
         </p>
       </div>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        <ExpiryStat
+          icon={<AlertTriangle size={17} />}
+          label="Expired"
+          value={expirySummary.data?.expired}
+          tone="danger"
+        />
+        <ExpiryStat
+          icon={<CalendarClock size={17} />}
+          label={`Expiring in ${expirySummary.data?.expiring_window_days ?? 60} days`}
+          value={expirySummary.data?.expiring_soon}
+          tone="warning"
+        />
+        <ExpiryStat
+          icon={<CheckCircle2 size={17} />}
+          label="Valid current evidence"
+          value={expirySummary.data?.valid}
+          tone="success"
+        />
+        <ExpiryStat
+          icon={<FileText size={17} />}
+          label="Missing validity"
+          value={expirySummary.data?.missing_validity}
+          tone="neutral"
+        />
+      </section>
 
       <form className="rounded-lg border border-border bg-card p-5" onSubmit={onSubmit}>
         <div className="grid gap-4 xl:grid-cols-[1fr_180px_1fr]">
@@ -193,7 +238,7 @@ export function EvidencePage() {
       </form>
 
       <section className="rounded-lg border border-border bg-card p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_260px_180px_180px_150px]">
+        <div className="grid gap-3 lg:grid-cols-[1fr_260px_180px_180px_180px_150px]">
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-2.5 text-muted-foreground" size={16} />
             <Input className="pl-9" placeholder="Search title, file, issuer, tags" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -232,6 +277,11 @@ export function EvidencePage() {
           <Select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
             <option value="">All document types</option>
             {documentTypes.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
+            ))}
+          </Select>
+          <Select value={expirationFilter} onChange={(event) => setExpirationFilter(event.target.value)}>
+            {expirationStatuses.map((item) => (
               <option key={item.value} value={item.value}>{item.label}</option>
             ))}
           </Select>
@@ -312,6 +362,7 @@ function EvidenceCard({
             <span className={`rounded-full px-2 py-1 text-xs ${item.is_current ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
               {item.is_current ? "Current" : "Superseded"}
             </span>
+            <ExpiryBadge validUntil={item.valid_until} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {item.file_name} · {formatType(item.document_type)} · {formatBytes(item.file_size_bytes)}
@@ -392,6 +443,50 @@ function Info({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ExpiryStat({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number | undefined;
+  tone: "danger" | "warning" | "success" | "neutral";
+}) {
+  const toneClasses = {
+    danger: "border-destructive/30 bg-destructive/5 text-destructive",
+    warning: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200",
+    success: "border-primary/30 bg-primary/5 text-primary",
+    neutral: "border-border bg-card text-muted-foreground",
+  };
+  return (
+    <div className={`rounded-lg border p-4 ${toneClasses[tone]}`}>
+      <div className="flex items-center gap-2 text-sm font-medium">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-3 text-2xl font-semibold text-foreground">{value ?? "-"}</div>
+    </div>
+  );
+}
+
+function ExpiryBadge({ validUntil }: { validUntil: string | null }) {
+  const status = expiryStatus(validUntil);
+  if (status === "valid") return null;
+  const styles = {
+    expired: "bg-destructive/10 text-destructive",
+    expiring_soon: "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200",
+    missing_validity: "bg-muted text-muted-foreground",
+  };
+  const labels = {
+    expired: "Expired",
+    expiring_soon: "Expiring soon",
+    missing_validity: "Missing validity",
+  };
+  return <span className={`rounded-full px-2 py-1 text-xs ${styles[status]}`}>{labels[status]}</span>;
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -407,6 +502,18 @@ function formatValidity(validFrom: string | null, validUntil: string | null) {
   const from = validFrom ? new Date(validFrom).toLocaleDateString() : "Open";
   const until = validUntil ? new Date(validUntil).toLocaleDateString() : "Open";
   return `${from} - ${until}`;
+}
+
+function expiryStatus(validUntil: string | null): "expired" | "expiring_soon" | "valid" | "missing_validity" {
+  if (!validUntil) return "missing_validity";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(validUntil);
+  expiry.setHours(0, 0, 0, 0);
+  if (expiry < today) return "expired";
+  const soon = new Date(today);
+  soon.setDate(soon.getDate() + 60);
+  return expiry <= soon ? "expiring_soon" : "valid";
 }
 
 function nextRevision(value: string) {

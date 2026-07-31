@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Calculator, CheckCircle2, Clock3, Download, FileJson, FileText, ImagePlus, Pencil, Plus, Printer, Share2, Sparkles, Trash2 } from "lucide-react";
+import { Archive, Calculator, CheckCircle2, Clock3, Download, FileJson, FileText, ImagePlus, Pencil, Plus, Printer, Send, Share2, Sparkles, Trash2 } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,24 @@ export function ProductDetailPage() {
     },
     meta: {
       errorMessage: "Could not create public passport link",
+    },
+  });
+  const verificationMutation = useMutation({
+    mutationFn: () =>
+      api.createVerification({
+        product_id: productId,
+        verification_type: "internal_review",
+        scope: "product_dpp",
+        evidence_summary: buildVerificationEvidenceSummary(evidence.data?.items ?? []),
+        requester_notes: "Submitted from the product evidence workspace for buyer-ready DPP and report use.",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["verifications"] });
+      navigate("/verification");
+    },
+    meta: {
+      successMessage: "Verification request submitted",
+      errorMessage: "Could not submit verification request",
     },
   });
   const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -272,6 +290,13 @@ export function ProductDetailPage() {
             >
               <Download size={16} /> PDF
             </Button>
+            <Button
+              variant="secondary"
+              disabled={!evidence.data?.items.length || verificationMutation.isPending}
+              onClick={() => verificationMutation.mutate()}
+            >
+              <Send size={16} /> Request verification
+            </Button>
             <Button variant="secondary" onClick={() => navigate(`/evidence?productId=${data.id}`)}>
               <Archive size={16} /> Open library
             </Button>
@@ -378,6 +403,21 @@ function EvidenceStat({ icon, label, value }: { icon: React.ReactNode; label: st
 
 function formatEvidenceType(value: string) {
   return value.replaceAll("_", " ");
+}
+
+function buildVerificationEvidenceSummary(items: Array<{ title: string; document_type: string; status: string; file_hash: string }>) {
+  const approved = items.filter((item) => item.status === "approved");
+  const needsReview = items.filter((item) => item.status === "needs_review");
+  const rejected = items.filter((item) => item.status === "rejected");
+  const archived = items.filter((item) => item.status === "archived");
+  const documentSummary = items
+    .slice(0, 8)
+    .map((item) => `${item.title} (${formatEvidenceType(item.document_type)}, ${item.status.replaceAll("_", " ")}, hash ${item.file_hash.slice(0, 12)})`)
+    .join("; ");
+  return [
+    `Product evidence pack contains ${items.length} document(s): ${approved.length} approved, ${needsReview.length} needs review, ${rejected.length} rejected, ${archived.length} archived.`,
+    documentSummary ? `Included evidence: ${documentSummary}.` : "No linked evidence details were available.",
+  ].join(" ");
 }
 
 function Field({ label, value }: { label: string; value: string }) {

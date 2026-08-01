@@ -396,6 +396,16 @@ export type EvidenceExpirySummary = {
   valid: number;
   missing_validity: number;
 };
+export type EvidenceRenewalDigest = {
+  sent: boolean;
+  recipients: string[];
+  delivered_count: number;
+  skipped_count: number;
+  expired_count: number;
+  expiring_soon_count: number;
+  missing_validity_count: number;
+  window_days: number;
+};
 export type EvidenceDownloadUrl = {
   url: string;
   expires_in_seconds: number;
@@ -1043,6 +1053,14 @@ export const api = {
     const suffix = params.toString() ? `?${params.toString()}` : "";
     return request<EvidenceExpirySummary>(`/evidence/expiry-summary${suffix}`);
   },
+  sendEvidenceRenewalDigest: (payload: { windowDays?: number; includeMissingValidity?: boolean } = {}) =>
+    request<EvidenceRenewalDigest>("/evidence/renewal-digest", {
+      method: "POST",
+      body: JSON.stringify({
+        window_days: payload.windowDays ?? 60,
+        include_missing_validity: payload.includeMissingValidity ?? true,
+      }),
+    }),
   uploadEvidenceDocument: (payload: {
     file: File;
     productId?: string;

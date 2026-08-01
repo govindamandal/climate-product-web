@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Archive, CalendarClock, CheckCircle2, ExternalLink, FileCheck2, FileText, History, Search, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, Archive, CalendarClock, CheckCircle2, ExternalLink, FileCheck2, FileText, History, Mail, Search, Upload, XCircle } from "lucide-react";
 import { ChangeEvent, FormEvent, ReactNode, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,13 @@ export function EvidencePage() {
   const expirySummary = useQuery({
     queryKey: ["evidence-expiry-summary"],
     queryFn: () => api.evidenceExpirySummary({ currentOnly: true, windowDays: 60 }),
+  });
+  const renewalDigestMutation = useMutation({
+    mutationFn: () => api.sendEvidenceRenewalDigest({ windowDays: 60, includeMissingValidity: true }),
+    meta: {
+      successMessage: "Evidence renewal digest sent",
+      errorMessage: "Could not send renewal digest",
+    },
   });
   const uploadMutation = useMutation({
     mutationFn: () =>
@@ -152,11 +159,20 @@ export function EvidencePage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold">Evidence Library</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload and review product evidence for DPPs, compliance packs, verification, and buyer diligence.
-        </p>
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
+        <div>
+          <h1 className="text-2xl font-semibold">Evidence Library</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload and review product evidence for DPPs, compliance packs, verification, and buyer diligence.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          disabled={renewalDigestMutation.isPending}
+          onClick={() => renewalDigestMutation.mutate()}
+        >
+          <Mail size={16} /> Send renewal digest
+        </Button>
       </div>
 
       <section className="grid gap-3 md:grid-cols-4">
